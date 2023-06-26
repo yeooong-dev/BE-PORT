@@ -3,6 +3,7 @@ import { Sequelize } from "sequelize";
 import User from "../models/users";
 import bcrypt from "bcrypt";
 import UserAttributes from "../models/userAttributes";
+import { validateRegistrationForm } from "../validation/userValidation";
 
 const sequelize = new Sequelize();
 const UserModel = User(sequelize);
@@ -45,7 +46,11 @@ export const checkNickname = async (req: Request, res: Response) => {
 
 // 회원가입 처리
 export const register = async (req: Request, res: Response) => {
-    const { email, nickname, name, password } = req.body;
+    const { email, nickname, name, password, confirmPassword } = req.body;
+
+    if (password !== confirmPassword) {
+        return res.status(400).json({ message: "비밀번호와 비밀번호 확인이 일치하지 않습니다." });
+    }
 
     // 비밀번호 암호화
     const hashedPassword = bcrypt.hashSync(password, 10).substring(0, 255);
@@ -57,6 +62,11 @@ export const register = async (req: Request, res: Response) => {
         name,
         password: hashedPassword,
     };
+    const isFormValid = validateRegistrationForm(email, nickname, name, password);
+
+    if (!isFormValid) {
+        return res.status(400).json({ message: "유효하지 않은 입력값이 있습니다." });
+    }
 
     UserModel.create(newUser)
         .then((user) => {
