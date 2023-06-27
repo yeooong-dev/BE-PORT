@@ -49,7 +49,7 @@ export const register = async (req: Request, res: Response) => {
     const { email, nickname, name, password, confirmPassword } = req.body;
 
     if (password !== confirmPassword) {
-        return res.status(400).json({ message: "비밀번호와 비밀번호 확인이 일치하지 않습니다." });
+        return res.status(400).json({ message: "비밀번호 값이 일치하지 않습니다." });
     }
 
     // 비밀번호 암호화

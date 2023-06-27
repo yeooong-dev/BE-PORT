@@ -1,7 +1,7 @@
 import { Sequelize, DataTypes, Model } from "sequelize";
 import UserAttributes from "../models/userAttributes";
 
-interface UserModel extends Model<UserAttributes>, UserAttributes {}
+export interface UserModel extends Model<UserAttributes>, UserAttributes {}
 
 const User = (sequelize: Sequelize) => {
     const User = sequelize.define<UserModel>(
