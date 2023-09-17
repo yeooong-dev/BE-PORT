@@ -17,7 +17,6 @@ const User = (sequelize: Sequelize) => {
         type: DataTypes.STRING(255),
         allowNull: false,
       },
-
       name: {
         type: DataTypes.STRING(45),
         allowNull: false,
@@ -25,6 +24,10 @@ const User = (sequelize: Sequelize) => {
       password: {
         type: DataTypes.STRING(255),
         allowNull: false,
+      },
+      profile_image: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
       },
     },
     {

@@ -5,6 +5,7 @@ import UserAttributes from "../models/userAttributes";
 import { validateRegistrationForm } from "../validation/userValidation";
 import sequelize from "../config/database";
 import { ValidationError } from "sequelize";
+import jwt from "jsonwebtoken";
 
 const UserModel = User(sequelize);
 const SALT_ROUNDS = parseInt(process.env.SALT_ROUNDS || "10");
@@ -85,12 +86,43 @@ export const login = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "비밀번호가 맞지 않습니다." });
     }
 
+    // JWT 토큰 생성
+    const token = jwt.sign(
+      { id: user.id },
+      process.env.JWT_SECRET || "your_jwt_secret",
+      { expiresIn: "1h" }
+    );
+
     console.log("로그인 성공");
     res
       .status(200)
-      .json({ message: "로그인에 성공했습니다.", user: user.get() });
+      .json({ message: "로그인에 성공했습니다.", user: user.get(), token });
   } catch (error) {
     console.error("로그인 처리 중 에러 발생:", error);
     res.status(500).json({ message: "로그인 처리 중 에러 발생" });
+  }
+};
+
+// 회원 정보
+export const getUserInfo = async (req: Request, res: Response) => {
+  try {
+    // 이메일을 query parameter에서 가져옴
+    const { email } = req.query;
+
+    if (!email || typeof email !== "string") {
+      return res.status(400).send("Invalid email parameter");
+    }
+
+    // 데이터베이스에서 사용자를 찾음
+    const userInstance = await UserModel.findOne({ where: { email } });
+
+    if (!userInstance) {
+      return res.status(404).send("User not found");
+    }
+
+    res.status(200).send(userInstance);
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Internal server error");
   }
 };
