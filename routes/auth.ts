@@ -14,25 +14,19 @@ router.post("/login", authController.login);
 // 회원정보
 router.get("/user", authController.getUserInfo);
 
-// 프로필 사진 업로드
-router.post("/profile/image", upload.single("image"), mypageController.imgAdd);
-
-// 프로필 사진 조회
-router.get("/profile/image", mypageController.imgGet);
-
-// 프로필 사진 수정
-router.put("/profile/image", mypageController.imgUpdate);
-
-// 프로필 사진 삭제
-router.delete("/profile/image", mypageController.imgDelete);
+// 프로필 CRUD
+router.post("/profile/image", upload, mypageController.imgAdd);
+router.get("/profile/image/:userId", mypageController.imgGet);
+router.put("/profile/image/:userId", upload, mypageController.imgUpdate);
+router.delete("/profile/image/:userId", mypageController.imgDelete);
 
 // 성함 변경
-router.put("/profile/name", mypageController.updateName);
+router.put("/profile/name/:userId", mypageController.updateName);
 
 // 비밀번호 변경
-router.put("/profile/password", mypageController.updatePassword);
+router.put("/profile/password/:userId", mypageController.updatePassword);
 
 // 회원 탈퇴
-router.delete("/profile", mypageController.deleteAccount);
+router.delete("/profile/:userId", mypageController.deleteAccount);
 
 export default router;

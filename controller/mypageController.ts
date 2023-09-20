@@ -1,12 +1,17 @@
 import { Request, Response } from "express";
 import User from "../models/user";
 import sequelize from "../config/database";
+import bcrypt from "bcrypt";
+import { getSignedUrl } from "../middleware/upload";
 
 interface MulterS3File extends Express.Multer.File {
   location: string;
+  key: string;
 }
 
 const UserModel = User(sequelize);
+const DEFAULT_IMAGE_URL =
+  "https://yeong-port.s3.ap-northeast-2.amazonaws.com/person.png";
 
 // 프로필 사진 추가
 export const imgAdd = async (req: Request, res: Response) => {
@@ -17,36 +22,52 @@ export const imgAdd = async (req: Request, res: Response) => {
     }
 
     const userId = req.body.userId;
-    const user = await UserModel.findByPk(userId);
+    if (!userId) {
+      throw new Error("User ID not provided");
+    }
 
+    const user = await UserModel.findByPk(userId);
     if (!user) {
       throw new Error("User not found");
     }
 
-    user.profile_image = file.location;
+    const key = file.key;
+    user.profile_image = key;
     await user.save();
 
     res.json({ message: "Profile image uploaded successfully", file });
   } catch (error: any) {
-    res.status(400).json({ error: error.message });
+    console.error(error);
+    res.status(500).json({ error: error.message });
   }
 };
 
 // 프로필 사진 조회
 export const imgGet = async (req: Request, res: Response) => {
   try {
-    const userId = req.query.userId as string;
+    const userId = req.params.userId as string;
     const user = await UserModel.findByPk(userId);
 
-    if (!user || !user.profile_image) {
-      throw new Error("Profile image not found");
+    if (!user) {
+      res.status(404).json({ error: "User not found" });
+      return;
     }
 
+    if (!user.profile_image) {
+      res.json({
+        message: "Profile image retrieved successfully",
+        imageUrl: DEFAULT_IMAGE_URL,
+      });
+      return;
+    }
+
+    const signedUrl = await getSignedUrl(user.profile_image);
     res.json({
       message: "Profile image retrieved successfully",
-      imageUrl: user.profile_image,
+      imageUrl: signedUrl,
     });
   } catch (error: any) {
+    console.error("Error:", error);
     res.status(400).json({ error: error.message });
   }
 };
@@ -54,9 +75,9 @@ export const imgGet = async (req: Request, res: Response) => {
 // 프로필 사진 수정
 export const imgUpdate = async (req: Request, res: Response) => {
   try {
-    const userId = req.body.userId;
-    const file = req.file as MulterS3File;
+    const userId = req.params.userId;
 
+    const file = req.file as MulterS3File;
     if (!file) {
       throw new Error("File not found");
     }
@@ -66,7 +87,8 @@ export const imgUpdate = async (req: Request, res: Response) => {
       throw new Error("User not found");
     }
 
-    user.profile_image = file.location;
+    const key = file.key;
+    user.profile_image = key;
     await user.save();
 
     res.json({ message: "Profile image updated successfully", file });
@@ -78,7 +100,7 @@ export const imgUpdate = async (req: Request, res: Response) => {
 // 프로필 사진 삭제
 export const imgDelete = async (req: Request, res: Response) => {
   try {
-    const userId = req.body.userId;
+    const userId = req.params.userId;
 
     const user = await UserModel.findByPk(userId);
     if (!user) {
@@ -94,15 +116,27 @@ export const imgDelete = async (req: Request, res: Response) => {
   }
 };
 
-// 성함 변경
+// 이름 변경
 export const updateName = async (req: Request, res: Response) => {
   try {
-    const userId = req.body.userId;
+    const userId = req.params.userId;
     const newName = req.body.newName;
+    const email = req.body.email;
+    const password = req.body.password;
 
     const user = await UserModel.findByPk(userId);
     if (!user) {
       throw new Error("User not found");
+    }
+
+    // 이메일 검증 추가
+    if (user.email !== email) {
+      throw new Error("Email does not match");
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      throw new Error("Password does not match");
     }
 
     user.name = newName;
@@ -117,7 +151,9 @@ export const updateName = async (req: Request, res: Response) => {
 // 비밀번호 변경
 export const updatePassword = async (req: Request, res: Response) => {
   try {
-    const userId = req.body.userId;
+    const userId = req.params.userId;
+    const email = req.body.email;
+    const currentPassword = req.body.password;
     const newPassword = req.body.newPassword;
 
     const user = await UserModel.findByPk(userId);
@@ -125,7 +161,19 @@ export const updatePassword = async (req: Request, res: Response) => {
       throw new Error("User not found");
     }
 
-    user.password = newPassword;
+    // 이메일 검증 추가
+    if (user.email !== email) {
+      throw new Error("Email does not match");
+    }
+
+    // 비밀번호 확인 로직 추가
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      throw new Error("Current password does not match");
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashedPassword; // 해시화된 비밀번호를 저장
     await user.save();
 
     res.json({ message: "Password updated successfully" });
@@ -137,11 +185,17 @@ export const updatePassword = async (req: Request, res: Response) => {
 // 회원 탈퇴
 export const deleteAccount = async (req: Request, res: Response) => {
   try {
-    const userId = req.body.userId;
+    const userId = req.params.userId;
+    const email = req.body.email;
 
     const user = await UserModel.findByPk(userId);
     if (!user) {
       throw new Error("User not found");
+    }
+
+    // 이메일 검증 추가
+    if (user.email !== email) {
+      throw new Error("Email does not match");
     }
 
     await user.destroy();

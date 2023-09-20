@@ -1,8 +1,12 @@
+import dotenv from "dotenv";
+dotenv.config();
+
 import cors from "cors";
 import express from "express";
 import session from "express-session";
 import logger from "morgan";
 import authRoutes from "./routes/auth";
+
 const PORT = Number(process.env.PORT) || 8000;
 const app = express();
 
