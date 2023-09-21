@@ -1,15 +1,12 @@
-import { Request, Response } from "express";
+import { Request, Response, RequestHandler } from "express";
 import Todo from "../models/todo";
 import sequelize from "../config/database";
-
-interface ExtendedRequest extends Request {
-  user: { id: number };
-}
+import { ExtendedRequestHandler } from "./types";
 
 const TodoInstance = Todo(sequelize);
 
 // 생성
-export const todoAdd = async (req: ExtendedRequest, res: Response) => {
+export const todoAdd: ExtendedRequestHandler = async (req, res, next) => {
   try {
     const { text, completed } = req.body;
     const user_id = req.user.id;
@@ -25,7 +22,7 @@ export const todoAdd = async (req: ExtendedRequest, res: Response) => {
 };
 
 // 조회
-export const todoGet = async (req: ExtendedRequest, res: Response) => {
+export const todoGet: ExtendedRequestHandler = async (req, res, next) => {
   try {
     const user_id = req.user.id;
     const todo = await TodoInstance.findAll({ where: { user_id } });
@@ -40,7 +37,7 @@ export const todoGet = async (req: ExtendedRequest, res: Response) => {
 };
 
 // 수정
-export const todoUpdate = async (req: ExtendedRequest, res: Response) => {
+export const todoUpdate: ExtendedRequestHandler = async (req, res, next) => {
   try {
     const { text, completed } = req.body;
     const todo_id = Number(req.params.todoId);
@@ -56,7 +53,7 @@ export const todoUpdate = async (req: ExtendedRequest, res: Response) => {
 };
 
 // 삭제
-export const todoDelete = async (req: ExtendedRequest, res: Response) => {
+export const todoDelete: ExtendedRequestHandler = async (req, res, next) => {
   try {
     const todo_id = Number(req.params.todoId);
     await TodoInstance.destroy({ where: { todo_id } });
