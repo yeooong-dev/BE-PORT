@@ -6,6 +6,7 @@ import express from "express";
 import session from "express-session";
 import logger from "morgan";
 import authRoutes from "./routes/auth";
+import todoRoutes from "./routes/todo";
 
 const PORT = Number(process.env.PORT) || 8000;
 const app = express();
@@ -32,6 +33,7 @@ app.use(
 );
 
 app.use("/auth", authRoutes);
+app.use("/todo", todoRoutes);
 
 app.listen(PORT, () => {
   console.log(`http://localhost:${PORT}`);

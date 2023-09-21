@@ -1,7 +1,6 @@
 import { Request, Response } from "express";
 import bcrypt from "bcrypt";
-import User from "../models/user";
-import UserAttributes from "../models/userAttributes";
+import User, { UserAttributes } from "../models/user";
 import { validateRegistrationForm } from "../validation/userValidation";
 import sequelize from "../config/database";
 import { ValidationError } from "sequelize";

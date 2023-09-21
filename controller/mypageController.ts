@@ -153,8 +153,8 @@ export const updatePassword = async (req: Request, res: Response) => {
   try {
     const userId = req.params.userId;
     const email = req.body.email;
-    const currentPassword = req.body.password;
     const newPassword = req.body.newPassword;
+    const confirmPassword = req.body.currentPassword;
 
     const user = await UserModel.findByPk(userId);
     if (!user) {
@@ -166,10 +166,8 @@ export const updatePassword = async (req: Request, res: Response) => {
       throw new Error("Email does not match");
     }
 
-    // 비밀번호 확인 로직 추가
-    const isMatch = await bcrypt.compare(currentPassword, user.password);
-    if (!isMatch) {
-      throw new Error("Current password does not match");
+    if (newPassword !== confirmPassword) {
+      throw new Error("비밀번호가 맞지 않음");
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
@@ -186,16 +184,16 @@ export const updatePassword = async (req: Request, res: Response) => {
 export const deleteAccount = async (req: Request, res: Response) => {
   try {
     const userId = req.params.userId;
-    const email = req.body.email;
+    const password = req.body.password;
 
     const user = await UserModel.findByPk(userId);
     if (!user) {
       throw new Error("User not found");
     }
 
-    // 이메일 검증 추가
-    if (user.email !== email) {
-      throw new Error("Email does not match");
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      throw new Error("Password does not match");
     }
 
     await user.destroy();

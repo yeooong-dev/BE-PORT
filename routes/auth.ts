@@ -1,8 +1,9 @@
 import express from "express";
-const router = express.Router();
 import * as authController from "../controller/authController";
 import * as mypageController from "../controller/mypageController";
 import upload from "../middleware/upload";
+
+const router = express.Router();
 
 // 회원가입
 router.post("/register", authController.register);

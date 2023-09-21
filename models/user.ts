@@ -1,5 +1,12 @@
 import { Sequelize, DataTypes, Model } from "sequelize";
-import UserAttributes from "../models/userAttributes";
+
+export interface UserAttributes {
+  id?: number;
+  email: string;
+  name: string;
+  password: string;
+  profile_image?: string | null;
+}
 
 export interface UserModel extends Model<UserAttributes>, UserAttributes {}
 
