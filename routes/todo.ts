@@ -3,16 +3,10 @@ import * as todoController from "../controller/todoController";
 
 const router = express.Router();
 
-// 생성
 router.post("/add", todoController.todoAdd);
-
-// 조회
-router.get("/get/:todoId", todoController.todoGet);
-
-// 수정
-router.put("/update/:todoId", todoController.todoUpdate);
-
-// 삭제
-router.delete("/delete/:todoId", todoController.todoDelete);
+router.get("/get", todoController.todoGet);
+router.put("/update/:todo_id", todoController.todoUpdate);
+router.delete("/delete/:todo_id", todoController.todoDelete);
+router.put("/toggle/:todo_id", todoController.todoToggleCheck);
 
 export default router;

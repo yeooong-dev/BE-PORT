@@ -74,9 +74,7 @@ export const login = async (req: Request, res: Response) => {
     console.log("User found: ", user ? user.get() : null);
     if (!user) {
       console.log("로그인 실패: 등록되어 있지 않은 사용자입니다.");
-      return res
-        .status(400)
-        .json({ message: "등록되어 있지 않은 사용자입니다." });
+      return res.status(400);
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);

@@ -38,6 +38,8 @@ const Todo = (sequelize: Sequelize) => {
     {
       tableName: "todos",
       timestamps: true,
+      createdAt: "created_at",
+      updatedAt: "updated_at", 
     }
   );
   return Todo;
