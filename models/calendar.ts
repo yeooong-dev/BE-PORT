@@ -3,7 +3,7 @@ import { Sequelize, DataTypes, Model } from "sequelize";
 export interface CalendarAttributes {
   id?: number;
   user_id?: number;
-  date: Date;
+  date: string;
   time: string;
   title: string;
 }
