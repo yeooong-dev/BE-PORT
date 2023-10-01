@@ -1,4 +1,5 @@
 import { Sequelize, DataTypes, Model } from "sequelize";
+import sequelize from "../config/database";
 
 export interface UserAttributes {
   id?: number;
@@ -47,4 +48,4 @@ const User = (sequelize: Sequelize) => {
   return User;
 };
 
-export default User;
+export default User(sequelize);

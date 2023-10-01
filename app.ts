@@ -10,6 +10,11 @@ import authRoutes from "./routes/auth";
 import todoRoutes from "./routes/todo";
 import familyEventsRoutes from "./routes/familyEvents";
 import calendarRoutes from "./routes/calendar";
+import chatRoutes from "./routes/chat";
+import http from "http";
+import { Server } from "socket.io";
+import sequelize from "./config/database";
+import { defineRelations } from "./models/chat/defineRelations";
 
 interface MyJwtPayload {
   id: number;
@@ -17,6 +22,8 @@ interface MyJwtPayload {
 
 const PORT = Number(process.env.PORT) || 8000;
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server);
 
 app.use(logger("dev"));
 app.use(express.urlencoded({ extended: true }));
@@ -49,6 +56,26 @@ app.use(async (req, res, next) => {
   next();
 });
 
+io.on("connection", (socket) => {
+  console.log("a user connected:", socket.id);
+
+  socket.on("disconnect", () => {
+    console.log("user disconnected:", socket.id);
+  });
+
+  socket.on("chat message", (msg) => {
+    io.emit("chat message", msg);
+  });
+});
+
+sequelize
+  .sync()
+  .then(() => {
+    console.log("database synchronized");
+    defineRelations();
+  })
+  .catch((err) => console.error("Unable to synchronize the database:", err));
+
 app.use(
   cors({
     origin: "http://localhost:3000",
@@ -62,7 +89,8 @@ app.use("/auth", authRoutes);
 app.use("/todo", todoRoutes);
 app.use("/familyEvents", familyEventsRoutes);
 app.use("/calendar", calendarRoutes);
+app.use("/chat", chatRoutes);
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`http://localhost:${PORT}`);
 });
