@@ -2,10 +2,13 @@ import { Request, Response } from "express";
 import User from "../models/user";
 import { Room } from "../models/chat/room";
 import { Chat } from "../models/chat/chat";
+import sequelize from "../config/database";
+
+const UserModel = User(sequelize);
 
 export const getUsers = async (req: Request, res: Response) => {
   try {
-    const users = await User.findAll();
+    const users = await UserModel.findAll();
     res.json(users);
   } catch (error) {
     console.error(error);

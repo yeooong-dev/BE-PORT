@@ -1,8 +1,10 @@
 import sequelize from "../../config/database";
-import User from "../user";
+import createUserModel from "../user";
 import { initChat, Chat } from "./chat";
 import { initRoom, Room } from "./room";
 import { initRoomParticipant, RoomParticipant } from "./roomParticipant";
+
+const User = createUserModel(sequelize);
 
 initChat(sequelize);
 initRoom(sequelize);
