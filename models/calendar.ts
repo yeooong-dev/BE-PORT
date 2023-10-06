@@ -3,8 +3,10 @@ import { Sequelize, DataTypes, Model } from "sequelize";
 export interface CalendarAttributes {
   id?: number;
   user_id?: number;
-  date: string;
-  time: string;
+  startDate: string;
+  endDate: string;
+  startTime: string;
+  endTime: string;
   title: string;
 }
 
@@ -30,11 +32,19 @@ const Calendar = (sequelize: Sequelize) => {
           key: "id",
         },
       },
-      date: {
-        type: DataTypes.DATEONLY, // DATEONLY는 시간을 제외한 날짜만 저장
+      startDate: {
+        type: DataTypes.DATEONLY,
         allowNull: false,
       },
-      time: {
+      endDate: {
+        type: DataTypes.DATEONLY,
+        allowNull: false,
+      },
+      startTime: {
+        type: DataTypes.TIME,
+        allowNull: false,
+      },
+      endTime: {
         type: DataTypes.TIME,
         allowNull: false,
       },

@@ -13,9 +13,10 @@ export const validateName = (name: string): boolean => {
 };
 
 // 비밀번호 유효성 검사
-// 영문 + 숫자 + 특수문자 [8~]
+// 영문 + 숫자 + 특수문자 [8~], 한글 제외
 export const validatePassword = (password: string): boolean => {
-  const passwordRegex = /^(?=.*[a-zA-Z])(?=.*[!@#$%^*+=-])(?=.*[0-9]).{8,}$/;
+  const passwordRegex =
+    /^(?![\uAC00-\uD7A3]*$)(?=.*[a-zA-Z])(?=.*\d)(?=.*[!@#$%^&*])[A-Za-z\d!@#$%^&*]{8,15}$/;
   return passwordRegex.test(password);
 };
 

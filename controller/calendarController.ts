@@ -5,14 +5,16 @@ const CalendarModel = Calendar(sequelize);
 
 export const addCalendar = async (req: Request, res: Response) => {
   try {
-    const { date, time, title } = req.body;
+    const { startDate, endDate, startTime, endTime, title } = req.body;
     const user_id = req.user ? req.user.id : null;
 
     if (user_id !== null) {
       const calendar = await CalendarModel.create({
         user_id,
-        date,
-        time,
+        startDate,
+        endDate,
+        startTime,
+        endTime,
         title,
       });
       res.json(calendar);
@@ -39,7 +41,7 @@ export const getCalendars = async (req: Request, res: Response) => {
 };
 
 export const updateCalendar = async (req: Request, res: Response) => {
-  const id = Number(req.params.eventId);
+  const id = Number(req.params.id);
   const user_id = req.user ? req.user.id : null;
 
   if (!id) return res.status(400).json({ error: "ID is required" });
@@ -47,13 +49,13 @@ export const updateCalendar = async (req: Request, res: Response) => {
     return res.status(401).json({ error: "User not authenticated" });
 
   try {
-    const { user_id, date, time, title } = req.body;
-    if (!date || !time || !title) {
+    const { startDate, endDate, startTime, endTime, title } = req.body;
+    if (!startDate || !endDate || !startTime || !endTime || !title) {
       return res.status(400).json({ error: "All fields are required" });
     }
 
     await CalendarModel.update(
-      { user_id, date, time, title },
+      { user_id, startDate, endDate, startTime, endTime, title },
       { where: { id: id, user_id } }
     );
 
@@ -76,10 +78,10 @@ export const updateCalendar = async (req: Request, res: Response) => {
 };
 
 export const deleteCalendar = async (req: Request, res: Response) => {
-  const { calendarId } = req.params;
+  const { id } = req.params;
 
   try {
-    const calendar = await CalendarModel.findByPk(calendarId);
+    const calendar = await CalendarModel.findByPk(id);
 
     if (calendar) {
       await calendar.destroy();

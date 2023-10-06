@@ -78,12 +78,16 @@ sequelize
 
 app.use(
   cors({
-    origin: "http://localhost:3000",
+    origin: "*",
     methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
     credentials: true,
     optionsSuccessStatus: 204,
   })
 );
+
+app.get("/", (req, res) => {
+  res.send("Hello, BE-PORT!");
+});
 
 app.use("/auth", authRoutes);
 app.use("/todo", todoRoutes);
@@ -91,6 +95,6 @@ app.use("/familyEvents", familyEventsRoutes);
 app.use("/calendar", calendarRoutes);
 app.use("/chat", chatRoutes);
 
-server.listen(PORT, () => {
-  console.log(`http://localhost:${PORT}`);
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`Server is running on port ${PORT}`);
 });

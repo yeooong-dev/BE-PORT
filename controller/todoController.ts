@@ -25,7 +25,10 @@ export const todoAdd: ExtendedRequestHandler = async (req, res) => {
 
 export const todoGet: ExtendedRequestHandler = async (req, res) => {
   try {
-    const todos = await TodoInstance.findAll();
+    const user_id = req.user ? req.user.id : -1;
+    const todos = await TodoInstance.findAll({
+      where: { user_id },
+    });
     res.json(todos);
   } catch (error: unknown) {
     console.error(error);
