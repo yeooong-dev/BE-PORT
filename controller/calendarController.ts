@@ -32,7 +32,16 @@ export const addCalendar = async (req: Request, res: Response) => {
 
 export const getCalendars = async (req: Request, res: Response) => {
   try {
-    const events = await CalendarModel.findAll();
+    const user_id = req.user ? req.user.id : null;
+
+    if (!user_id) {
+      return res.status(401).json({ error: "User not authenticated" });
+    }
+
+    const events = await CalendarModel.findAll({
+      where: { user_id },
+    });
+
     res.status(200).json(events);
   } catch (error) {
     console.error(error);
