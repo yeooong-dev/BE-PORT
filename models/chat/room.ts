@@ -23,6 +23,10 @@ export const initRoom = (sequelize: Sequelize) => {
         type: DataTypes.STRING(255),
         allowNull: true,
       },
+      createdAt: {
+        type: DataTypes.DATE,
+        allowNull: false,
+      },
     },
     {
       tableName: "rooms",

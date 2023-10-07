@@ -4,60 +4,70 @@ import { Room } from "../models/chat/room";
 import { Chat } from "../models/chat/chat";
 import sequelize from "../config/database";
 import { Op } from "sequelize";
-
+import { RoomParticipant } from "../models/chat/roomParticipant";
 const UserModel = User(sequelize);
-
-export const getUsers = async (req: Request, res: Response) => {
+export const getInteractedUsers = async (req: Request, res: Response) => {
   try {
-    // 기존 사용자 정보 로드
-    const users = await UserModel.findAll({
-      attributes: ["id", "name", "profile_image"],
+    const userId = req.user?.id;
+    if (!userId) throw new Error("User not authenticated");
+    const userRooms = await RoomParticipant.findAll({
+      where: { userId },
+      attributes: ["roomId"],
+    });
+    const roomIds = userRooms.map((room) => room.roomId);
+    const participants = await RoomParticipant.findAll({
       where: {
-        id: {
-          [Op.ne]: req.user?.id,
+        roomId: roomIds,
+        userId: {
+          [Op.ne]: userId,
         },
       },
     });
-
-    // 각 사용자의 마지막 메시지 로드
-    const usersWithLastMessage = await Promise.all(
-      users.map(async (user) => {
-        const lastChat = await Chat.findOne({
-          where: { userId: user.id },
-          order: [["createdAt", "DESC"]],
-        });
-        return {
-          ...user.toJSON(),
-          lastMessage: lastChat ? lastChat.message : null,
-        };
-      })
-    );
-
-    res.json(usersWithLastMessage);
+    const uniqueUserIds = [...new Set(participants.map((p) => p.userId))];
+    if (uniqueUserIds.length === 0) {
+      return res.json([]);
+    }
+    const users = await UserModel.findAll({
+      where: { id: uniqueUserIds },
+      attributes: ["id", "name", "profile_image"],
+    });
+    res.json(users);
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "An unexpected error occurred" });
   }
 };
-
+export const getUsers = async (req: Request, res: Response) => {
+  try {
+    const currentUserId = req.user?.id;
+    const users = await UserModel.findAll({
+      attributes: ["id", "name", "profile_image"],
+      where: {
+        id: {
+          [Op.ne]: currentUserId,
+        },
+      },
+    });
+    res.json(users);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "An unexpected error occurred" });
+  }
+};
 export const createRoom = async (req: Request, res: Response) => {
   try {
     const { userIds, name } = req.body;
     if (!name) throw new Error("Room name is required");
-
     const room = await Room.create({ name });
     const currentTimestamp = new Date();
-
     // @ts-ignore
     await room.addUsers(userIds, { through: { joinedAt: currentTimestamp } });
-
     res.json(room);
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "An unexpected error occurred" });
   }
 };
-
 export const getRoom = async (req: Request, res: Response) => {
   try {
     const { roomId } = req.params;
@@ -82,13 +92,27 @@ export const getRoom = async (req: Request, res: Response) => {
     res.status(500).json({ error: "An unexpected error occurred" });
   }
 };
-
 export const postMessage = async (req: Request, res: Response) => {
   try {
     const { roomId } = req.params;
     const { userId, message } = req.body;
     const chat = await Chat.create({ userId, roomId, message });
     res.json(chat);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "An unexpected error occurred" });
+  }
+};
+export const removeUserFromRoom = async (req: Request, res: Response) => {
+  try {
+    const { roomId, userId } = req.params;
+    await RoomParticipant.destroy({
+      where: {
+        roomId: Number(roomId),
+        userId: Number(userId),
+      },
+    });
+    res.json({ success: true });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "An unexpected error occurred" });

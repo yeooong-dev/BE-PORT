@@ -3,6 +3,11 @@ import User from "../models/user";
 import sequelize from "../config/database";
 import bcrypt from "bcrypt";
 import { getSignedUrl } from "../middleware/upload";
+import Todo from "../models/todo";
+import FamilyEvents from "../models/familyEvents";
+import Calendar from "../models/calendar";
+import { Chat } from "../models/chat/chat";
+import { RoomParticipant } from "../models/chat/roomParticipant";
 
 interface MulterS3File extends Express.Multer.File {
   location: string;
@@ -10,6 +15,10 @@ interface MulterS3File extends Express.Multer.File {
 }
 
 const UserModel = User(sequelize);
+const TodoModel = Todo(sequelize);
+const FamilyEventsModel = FamilyEvents(sequelize);
+const CalendarModel = Calendar(sequelize);
+
 const DEFAULT_IMAGE_URL =
   "https://yeong-port.s3.ap-northeast-2.amazonaws.com/person.png";
 
@@ -196,6 +205,14 @@ export const deleteAccount = async (req: Request, res: Response) => {
       throw new Error("Password does not match");
     }
 
+    // 관련된 데이터 삭제
+    await TodoModel.destroy({ where: { user_id: userId } });
+    await FamilyEventsModel.destroy({ where: { user_id: userId } });
+    await CalendarModel.destroy({ where: { user_id: userId } });
+    await Chat.destroy({ where: { userId: userId } });
+    await RoomParticipant.destroy({ where: { userId: userId } });
+
+    // 사용자 데이터 삭제
     await user.destroy();
 
     res.json({ message: "Account deleted successfully" });

@@ -35,21 +35,21 @@ const FamilyEvents = (sequelize: Sequelize) => {
         allowNull: false,
       },
       date: {
-        type: DataTypes.DATE, 
-        allowNull: false, 
+        type: DataTypes.DATE,
+        allowNull: false,
       },
       type: {
         type: DataTypes.STRING,
         allowNull: false,
       },
       amount: {
-        type: DataTypes.INTEGER, 
+        type: DataTypes.INTEGER,
         allowNull: false,
       },
     },
     {
       tableName: "familyEvents",
-      timestamps: true,
+      timestamps: false,
     }
   );
   return FamilyEvents;
