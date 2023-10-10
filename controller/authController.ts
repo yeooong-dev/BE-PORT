@@ -87,7 +87,7 @@ export const login = async (req: Request, res: Response) => {
     const token = jwt.sign(
       { id: user.id },
       process.env.JWT_SECRET || "your_jwt_secret",
-      { expiresIn: "1h" }
+      { expiresIn: "10h" }
     );
 
     console.log("로그인 성공");

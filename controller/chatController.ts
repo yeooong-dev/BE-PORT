@@ -6,15 +6,19 @@ import sequelize from "../config/database";
 import { Op } from "sequelize";
 import { RoomParticipant } from "../models/chat/roomParticipant";
 const UserModel = User(sequelize);
+
 export const getInteractedUsers = async (req: Request, res: Response) => {
   try {
     const userId = req.user?.id;
     if (!userId) throw new Error("User not authenticated");
+
     const userRooms = await RoomParticipant.findAll({
       where: { userId },
       attributes: ["roomId"],
     });
+
     const roomIds = userRooms.map((room) => room.roomId);
+
     const participants = await RoomParticipant.findAll({
       where: {
         roomId: roomIds,
@@ -23,20 +27,45 @@ export const getInteractedUsers = async (req: Request, res: Response) => {
         },
       },
     });
+
     const uniqueUserIds = [...new Set(participants.map((p) => p.userId))];
+
     if (uniqueUserIds.length === 0) {
       return res.json([]);
     }
+
     const users = await UserModel.findAll({
       where: { id: uniqueUserIds },
       attributes: ["id", "name", "profile_image"],
     });
-    res.json(users);
+
+    const usersWithLastMessage = await Promise.all(
+      users.map(async (user) => {
+        const lastChat = await Chat.findOne({
+          where: {
+            [Op.or]: [
+              { userId: user.id, roomId: userId },
+              { userId: userId, roomId: user.id },
+            ],
+          },
+          order: [["createdAt", "DESC"]],
+          attributes: ["message"],
+        });
+
+        return {
+          ...user.dataValues,
+          lastMessage: lastChat ? lastChat.message : null,
+        };
+      })
+    );
+
+    res.json(usersWithLastMessage);
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "An unexpected error occurred" });
   }
 };
+
 export const getUsers = async (req: Request, res: Response) => {
   try {
     const currentUserId = req.user?.id;
@@ -54,6 +83,7 @@ export const getUsers = async (req: Request, res: Response) => {
     res.status(500).json({ error: "An unexpected error occurred" });
   }
 };
+
 export const createRoom = async (req: Request, res: Response) => {
   try {
     const { userIds, name } = req.body;
@@ -68,6 +98,7 @@ export const createRoom = async (req: Request, res: Response) => {
     res.status(500).json({ error: "An unexpected error occurred" });
   }
 };
+
 export const getRoom = async (req: Request, res: Response) => {
   try {
     const { roomId } = req.params;
@@ -92,6 +123,7 @@ export const getRoom = async (req: Request, res: Response) => {
     res.status(500).json({ error: "An unexpected error occurred" });
   }
 };
+
 export const postMessage = async (req: Request, res: Response) => {
   try {
     const { roomId } = req.params;
@@ -103,6 +135,7 @@ export const postMessage = async (req: Request, res: Response) => {
     res.status(500).json({ error: "An unexpected error occurred" });
   }
 };
+
 export const removeUserFromRoom = async (req: Request, res: Response) => {
   try {
     const { roomId, userId } = req.params;
@@ -112,6 +145,16 @@ export const removeUserFromRoom = async (req: Request, res: Response) => {
         userId: Number(userId),
       },
     });
+
+    const remainingParticipants = await RoomParticipant.count({
+      where: { roomId: Number(roomId) },
+    });
+
+    if (remainingParticipants === 0) {
+      await Chat.destroy({ where: { roomId: Number(roomId) } });
+      await Room.destroy({ where: { id: Number(roomId) } });
+    }
+
     res.json({ success: true });
   } catch (error) {
     console.error(error);
