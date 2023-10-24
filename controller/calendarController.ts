@@ -87,10 +87,17 @@ export const updateCalendar = async (req: Request, res: Response) => {
 };
 
 export const deleteCalendar = async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = Number(req.params.id);
+  const user_id = req.user ? req.user.id : null;
+
+  if (!user_id) {
+    return res.status(401).json({ error: "User not authenticated" });
+  }
 
   try {
-    const calendar = await CalendarModel.findByPk(id);
+    const calendar = await CalendarModel.findOne({
+      where: { id: id, user_id: user_id },
+    });
 
     if (calendar) {
       await calendar.destroy();
