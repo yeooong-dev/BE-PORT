@@ -15,7 +15,6 @@ import http from "http";
 import { Server } from "socket.io";
 import sequelize from "./config/database";
 import { defineRelations } from "./models/chat/defineRelations";
-import { Chat } from "./models/chat/chat";
 
 interface MyJwtPayload {
   id: number;
@@ -58,55 +57,29 @@ app.use(async (req, res, next) => {
   if (authHeader) {
     const token = authHeader.split(" ")[1];
     try {
-      if (!process.env.JWT_SECRET) {
-        throw new Error("JWT_SECRET is not defined in .env file");
-      }
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const decoded = jwt.verify(
+        token,
+        process.env.JWT_SECRET || "your_jwt_secret"
+      );
       if (typeof decoded !== "string" && "id" in decoded) {
         req.user = decoded as MyJwtPayload;
       }
     } catch (error) {
       console.error("Token verification failed:", error);
-      res.status(401).json({ error: "Invalid token" });
-      return;
     }
   }
   next();
 });
 
-// socket
 io.on("connection", (socket) => {
   console.log("a user connected:", socket.id);
 
-  socket.on("join room", (roomId) => {
-    socket.join(roomId);
-  });
-
-  socket.on("leave room", (roomId) => {
-    socket.leave(roomId);
-  });
-
-  socket.on("chat message", async (data) => {
-    console.log(
-      `Received message from user ${data.userId} in room ${data.roomId}:`,
-      data.msg
-    );
-    io.to(data.roomId).emit("chat message", data.msg);
-    console.log(`Sent message to room ${data.roomId}:`, data.msg);
-
-    try {
-      await Chat.create({
-        userId: data.userId,
-        roomId: data.roomId,
-        message: data.msg,
-      });
-    } catch (error) {
-      console.error("Error saving chat message to database:", error);
-    }
-  });
-
   socket.on("disconnect", () => {
     console.log("user disconnected:", socket.id);
+  });
+
+  socket.on("chat message", (msg) => {
+    io.emit("chat message", msg);
   });
 });
 

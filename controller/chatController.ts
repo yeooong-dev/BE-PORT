@@ -77,7 +77,6 @@ export const getUsers = async (req: Request, res: Response) => {
         },
       },
     });
-    console.log("Fetched Users:", users);
     res.json(users);
   } catch (error) {
     console.error(error);
@@ -89,15 +88,6 @@ export const createRoom = async (req: Request, res: Response) => {
   try {
     const { userIds, name } = req.body;
     if (!name) throw new Error("Room name is required");
-
-    // 동일한 사용자와의 채팅방이 이미 존재하는지 확인
-    const existingRoom = await RoomParticipant.findOne({
-      where: { userId: userIds[0] },
-    });
-    if (existingRoom) {
-      return res.json({ roomId: existingRoom.roomId });
-    }
-
     const room = await Room.create({ name });
     const currentTimestamp = new Date();
     // @ts-ignore
@@ -111,6 +101,7 @@ export const createRoom = async (req: Request, res: Response) => {
 
 export const getRoom = async (req: Request, res: Response) => {
   try {
+    console.log(req.params);
     const { roomId } = req.params;
     const room = await Room.findByPk(roomId, {
       include: [
@@ -127,22 +118,7 @@ export const getRoom = async (req: Request, res: Response) => {
         },
       ],
     });
-    if (!room) {
-      return res.status(404).json({ error: "Room not found" });
-    }
     res.json(room);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "An unexpected error occurred" });
-  }
-};
-
-export const joinRoom = async (req: Request, res: Response) => {
-  try {
-    const { roomId } = req.params;
-    const { userId } = req.body;
-    const roomParticipant = await RoomParticipant.create({ roomId, userId });
-    res.json(roomParticipant);
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "An unexpected error occurred" });

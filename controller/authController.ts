@@ -89,8 +89,6 @@ export const login = async (req: Request, res: Response) => {
       process.env.JWT_SECRET || "your_jwt_secret",
       { expiresIn: "10h" }
     );
-
-    console.log("로그인 성공");
     res
       .status(200)
       .json({ message: "로그인에 성공했습니다.", user: user.get(), token });
