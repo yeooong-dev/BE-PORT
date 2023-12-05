@@ -11,10 +11,14 @@ import todoRoutes from "./routes/todo";
 import familyEventsRoutes from "./routes/familyEvents";
 import calendarRoutes from "./routes/calendar";
 import chatRoutes from "./routes/chat";
+import searchRoutes from "./routes/search";
 import http from "http";
-import { Server } from "socket.io";
 import sequelize from "./config/database";
 import { defineRelations } from "./models/chat/defineRelations";
+import { initSocket } from "./socket";
+import { Chat } from "./models/chat/chat";
+import User from "./models/user";
+import { RoomParticipant } from "./models/chat/roomParticipant";
 
 interface MyJwtPayload {
   id: number;
@@ -23,6 +27,8 @@ interface MyJwtPayload {
 const PORT = Number(process.env.PORT) || 8000;
 const app = express();
 const server = http.createServer(app);
+const io = initSocket(server);
+const UserModel = User(sequelize);
 
 app.use(
   cors({
@@ -32,13 +38,6 @@ app.use(
     optionsSuccessStatus: 204,
   })
 );
-
-const io = new Server(server, {
-  cors: {
-    origin: "http://localhost:3000",
-    methods: ["GET", "POST"],
-  },
-});
 
 app.use(logger("dev"));
 app.use(express.urlencoded({ extended: true }));
@@ -72,21 +71,61 @@ app.use(async (req, res, next) => {
 });
 
 io.on("connection", (socket) => {
-  console.log("a user connected:", socket.id);
+  console.log(`New client connected: ${socket.id}`);
+
+  socket.on("join room", (roomId) => {
+    socket.join(roomId);
+    console.log(`User ${socket.id} joined room ${roomId}`);
+  });
+
+  socket.on("chat message in room", async ({ roomId, message, userId }) => {
+    try {
+      if (!userId || !roomId) {
+        console.error("Invalid userId or roomId:", userId, roomId);
+        return;
+      }
+
+      const chat = await Chat.create({ userId, roomId, message });
+      const user = await UserModel.findOne({ where: { id: userId } });
+
+      if (!user) {
+        console.error("User not found for id:", userId);
+        return;
+      }
+
+      const participants = await RoomParticipant.findAll({
+        where: { roomId },
+        attributes: ["userId"],
+      });
+
+      participants.forEach((participant) => {
+        console.log(
+          `Sending message to user ${participant.userId} in room ${roomId}`
+        );
+        socket.to(roomId.toString()).emit("chat message", {
+          roomId,
+          content: message,
+          user: {
+            id: user.id,
+            name: user.name,
+            profile_image: user.profile_image,
+          },
+        });
+      });
+    } catch (error) {
+      console.error("Error in chat message in room:", error);
+    }
+  });
 
   socket.on("disconnect", () => {
     console.log("user disconnected:", socket.id);
-  });
-
-  socket.on("chat message", (msg) => {
-    io.emit("chat message", msg);
   });
 });
 
 sequelize
   .sync()
   .then(() => {
-    console.log("database synchronized");
+    console.log("Database synchronized");
     defineRelations();
   })
   .catch((err) => console.error("Unable to synchronize the database:", err));
@@ -100,6 +139,7 @@ app.use("/todo", todoRoutes);
 app.use("/familyEvents", familyEventsRoutes);
 app.use("/calendar", calendarRoutes);
 app.use("/chat", chatRoutes);
+app.use("/search", searchRoutes);
 
 server.listen(PORT, () => {
   console.log(`Server with Socket.io is running on port ${PORT}`);

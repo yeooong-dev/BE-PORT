@@ -2,6 +2,7 @@ import express from "express";
 import * as chatController from "../controller/chatController";
 const router = express.Router();
 
+router.get("/room/exist", chatController.checkIfRoomExists);
 router.get("/interactedUsers", chatController.getInteractedUsers);
 router.get("/users", chatController.getUsers);
 router.post("/room", chatController.createRoom);

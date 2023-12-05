@@ -5,23 +5,40 @@ import { Chat } from "../models/chat/chat";
 import sequelize from "../config/database";
 import { Op } from "sequelize";
 import { RoomParticipant } from "../models/chat/roomParticipant";
+import { getIO } from "../socket";
+
 const UserModel = User(sequelize);
 
 export const getInteractedUsers = async (req: Request, res: Response) => {
   try {
     const userId = req.user?.id;
-    if (!userId) throw new Error("User not authenticated");
+    if (!userId) {
+      throw new Error("User not authenticated");
+    }
 
     const userRooms = await RoomParticipant.findAll({
       where: { userId },
       attributes: ["roomId"],
     });
 
-    const roomIds = userRooms.map((room) => room.roomId);
+    const roomIds: number[] = userRooms.map(
+      (roomParticipant) => roomParticipant.roomId
+    );
+
+    const validRooms = await Room.findAll({
+      where: {
+        id: {
+          [Op.in]: roomIds,
+        },
+      },
+      attributes: ["id"],
+    });
+
+    const validRoomIds: number[] = validRooms.map((room) => room.id);
 
     const participants = await RoomParticipant.findAll({
       where: {
-        roomId: roomIds,
+        roomId: validRoomIds,
         userId: {
           [Op.ne]: userId,
         },
@@ -87,6 +104,7 @@ export const getUsers = async (req: Request, res: Response) => {
 export const createRoom = async (req: Request, res: Response) => {
   try {
     const { userIds, name } = req.body;
+    console.log(`Creating room with userIds: ${userIds}`);
     if (!name) throw new Error("Room name is required");
     const room = await Room.create({ name });
     const currentTimestamp = new Date();
@@ -101,8 +119,12 @@ export const createRoom = async (req: Request, res: Response) => {
 
 export const getRoom = async (req: Request, res: Response) => {
   try {
-    console.log(req.params);
-    const { roomId } = req.params;
+    const roomId = parseInt(req.params.roomId, 10);
+
+    if (isNaN(roomId)) {
+      return res.status(400).json({ error: "Invalid room ID" });
+    }
+
     const room = await Room.findByPk(roomId, {
       include: [
         {
@@ -118,6 +140,10 @@ export const getRoom = async (req: Request, res: Response) => {
         },
       ],
     });
+
+    if (!room) {
+      return res.json({});
+    }
     res.json(room);
   } catch (error) {
     console.error(error);
@@ -125,14 +151,79 @@ export const getRoom = async (req: Request, res: Response) => {
   }
 };
 
+export const checkIfRoomExists = async (req: Request, res: Response) => {
+  try {
+    if (typeof req.query.userIds !== "string") {
+      return res.status(400).json({ error: "userIds must be a string" });
+    }
+
+    const userIds = req.query.userIds.split(",").map((id) => id.trim());
+
+    if (!userIds.every((id) => /^\d+$/.test(id))) {
+      return res.status(400).json({ error: "All userIds must be numeric" });
+    }
+
+    const userIdNumbers = userIds.map(Number);
+
+    const roomsWithAllUsers = await Room.findAll({
+      include: [
+        {
+          model: RoomParticipant,
+          as: "participants",
+          where: {
+            userId: {
+              [Op.in]: userIdNumbers,
+            },
+          },
+          required: true,
+        },
+      ],
+      group: ["Room.id"],
+      having: sequelize.where(
+        sequelize.fn("COUNT", sequelize.col("Room.id")),
+        "=",
+        userIdNumbers.length
+      ),
+    });
+
+    if (roomsWithAllUsers.length > 0) {
+      res.json({ exists: true, room: roomsWithAllUsers[0] });
+    } else {
+      res.json({ exists: false, room: null });
+    }
+  } catch (error) {
+    console.error("함수 실행 중 오류 발생:", error);
+    res.status(500).json({ error: "An unexpected error occurred" });
+  }
+};
+
 export const postMessage = async (req: Request, res: Response) => {
+  const io = getIO();
+
   try {
     const { roomId } = req.params;
-    const { userId, message } = req.body;
+    const { message } = req.body;
+    const userId = req.user.id;
+
     const chat = await Chat.create({ userId, roomId, message });
-    res.json(chat);
+
+    const user = await UserModel.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    const chatData = {
+      ...chat.get(),
+      user: {
+        id: user.id,
+        name: user.name,
+        profile_image: user.profile_image,
+      },
+    };
+    io.to(String(roomId)).emit("chat message", chatData);
+    res.json(chatData);
   } catch (error) {
-    console.error(error);
+    console.error("Error in postMessage:", error);
     res.status(500).json({ error: "An unexpected error occurred" });
   }
 };
@@ -140,21 +231,13 @@ export const postMessage = async (req: Request, res: Response) => {
 export const removeUserFromRoom = async (req: Request, res: Response) => {
   try {
     const { roomId, userId } = req.params;
+
     await RoomParticipant.destroy({
       where: {
         roomId: Number(roomId),
         userId: Number(userId),
       },
     });
-
-    const remainingParticipants = await RoomParticipant.count({
-      where: { roomId: Number(roomId) },
-    });
-
-    if (remainingParticipants === 0) {
-      await Chat.destroy({ where: { roomId: Number(roomId) } });
-      await Room.destroy({ where: { id: Number(roomId) } });
-    }
 
     res.json({ success: true });
   } catch (error) {

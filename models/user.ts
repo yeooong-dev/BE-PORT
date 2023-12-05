@@ -1,4 +1,4 @@
-import { Sequelize, DataTypes, Model } from "sequelize";
+import { Sequelize, DataTypes, Model, ModelCtor } from "sequelize";
 
 export interface UserAttributes {
   id?: number;
@@ -10,7 +10,7 @@ export interface UserAttributes {
 
 export interface UserModel extends Model<UserAttributes>, UserAttributes {}
 
-const User = (sequelize: Sequelize) => {
+const User = (sequelize: Sequelize): ModelCtor<UserModel> => {
   const User = sequelize.define<UserModel>(
     "User",
     {

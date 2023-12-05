@@ -4,6 +4,7 @@ export class RoomParticipant extends Model {
   public roomId!: number;
   public userId!: number;
   public joinedAt!: Date;
+  public leftAt!: Date | null;
 }
 
 export const initRoomParticipant = (sequelize: Sequelize) => {
@@ -22,6 +23,10 @@ export const initRoomParticipant = (sequelize: Sequelize) => {
       joinedAt: {
         type: DataTypes.DATE,
         allowNull: false,
+      },
+      leftAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
       },
     },
     {

@@ -40,4 +40,16 @@ export const defineRelations = () => {
     foreignKey: "userId",
     as: "user",
   });
+
+  Room.hasMany(RoomParticipant, {
+    sourceKey: "id",
+    foreignKey: "roomId",
+    as: "participants",
+  });
+
+  RoomParticipant.belongsTo(Room, {
+    targetKey: "id",
+    foreignKey: "roomId",
+    as: "room",
+  });
 };
