@@ -29,8 +29,12 @@ export const checkEmail = async (req: Request, res: Response) => {
 
 // 회원가입 처리
 export const register = async (req: Request, res: Response) => {
-  console.log(req.body);
-  const { email, name, password } = req.body;
+  const { email, name, password, passwordConfirm } = req.body as {
+    email: string;
+    name: string;
+    password: string;
+    passwordConfirm: string;
+  };
 
   // 폼 유효성 검사
   const isFormValid = validateRegistrationForm(email, name, password);
@@ -39,6 +43,12 @@ export const register = async (req: Request, res: Response) => {
     return res
       .status(400)
       .json({ message: "유효하지 않은 입력값이 있습니다." });
+  }
+
+  if (password !== passwordConfirm) {
+    return res
+      .status(400)
+      .json({ message: "비밀번호와 비밀번호 확인이 일치하지 않습니다." });
   }
 
   try {

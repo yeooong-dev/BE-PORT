@@ -30,8 +30,13 @@ export const addFamilyEvent = async (req: Request, res: Response) => {
 };
 
 export const getAllFamilyEvents = async (req: Request, res: Response) => {
+  const user_id = req.user ? req.user.id : null;
+
+  if (user_id === null)
+    return res.status(401).json({ error: "User not authenticated" });
+
   try {
-    const events = await FamilyEventsInstance.findAll();
+    const events = await FamilyEventsInstance.findAll({ where: { user_id } });
     res.status(200).json(events);
   } catch (error) {
     console.error(error);
@@ -78,15 +83,21 @@ export const updateFamilyEvent = async (req: Request, res: Response) => {
 
 export const deleteFamilyEvent = async (req: Request, res: Response) => {
   const { eventId } = req.params;
+  const user_id = req.user ? req.user.id : null;
+
+  if (user_id === null)
+    return res.status(401).json({ error: "User not authenticated" });
 
   try {
-    const event = await FamilyEventsInstance.findByPk(eventId);
+    const event = await FamilyEventsInstance.findOne({
+      where: { id: eventId, user_id },
+    });
 
     if (event) {
       await event.destroy();
       res.status(200).send("Event deleted");
     } else {
-      res.status(404).send("Event not found");
+      res.status(404).send("Event not found or not authorized to delete");
     }
   } catch (error) {
     res.status(500).json({ error: "An unexpected error occurred" });
@@ -94,8 +105,13 @@ export const deleteFamilyEvent = async (req: Request, res: Response) => {
 };
 
 export const deleteAllFamilyEvents = async (req: Request, res: Response) => {
+  const user_id = req.user ? req.user.id : null;
+
+  if (user_id === null)
+    return res.status(401).json({ error: "User not authenticated" });
+
   try {
-    await FamilyEventsInstance.destroy({ where: {} });
+    await FamilyEventsInstance.destroy({ where: { user_id } });
     res.status(200).send("All events deleted");
   } catch (error) {
     res.status(500).json({ error: "An unexpected error occurred" });
