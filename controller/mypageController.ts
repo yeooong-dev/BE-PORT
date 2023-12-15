@@ -170,7 +170,6 @@ export const updatePassword = async (req: Request, res: Response) => {
       throw new Error("User not found");
     }
 
-    // 이메일 검증 추가
     if (user.email !== email) {
       throw new Error("Email does not match");
     }
@@ -180,7 +179,7 @@ export const updatePassword = async (req: Request, res: Response) => {
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
-    user.password = hashedPassword; // 해시화된 비밀번호를 저장
+    user.password = hashedPassword;
     await user.save();
 
     res.json({ message: "Password updated successfully" });
