@@ -4,7 +4,7 @@ import { initChat, Chat } from "./chat";
 import { initRoom, Room } from "./room";
 import { initRoomParticipant, RoomParticipant } from "./roomParticipant";
 
-const User = createUserModel(sequelize);
+const UserModel = createUserModel(sequelize);
 
 initChat(sequelize);
 initRoom(sequelize);
@@ -23,19 +23,19 @@ export const defineRelations = () => {
     as: "room",
   });
 
-  Room.belongsToMany(User, {
+  Room.belongsToMany(UserModel, {
     through: RoomParticipant,
     foreignKey: "roomId",
     as: "users",
   });
 
-  User.belongsToMany(Room, {
+  UserModel.belongsToMany(Room, {
     through: RoomParticipant,
     foreignKey: "userId",
     as: "rooms",
   });
 
-  Chat.belongsTo(User, {
+  Chat.belongsTo(UserModel, {
     targetKey: "id",
     foreignKey: "userId",
     as: "user",

@@ -71,11 +71,14 @@ app.use(async (req, res, next) => {
 });
 
 io.on("connection", (socket) => {
-  console.log(`New client connected: ${socket.id}`);
-
   socket.on("join room", (roomId) => {
-    socket.join(roomId);
+    socket.join(roomId.toString());
     console.log(`User ${socket.id} joined room ${roomId}`);
+  });
+
+  socket.on("join user room", (userId) => {
+    socket.join(userId.toString());
+    console.log(`User ${socket.id} joined user room ${userId}`);
   });
 
   socket.on("chat message in room", async ({ roomId, message, userId }) => {
@@ -92,25 +95,14 @@ io.on("connection", (socket) => {
         console.error("User not found for id:", userId);
         return;
       }
-
-      const participants = await RoomParticipant.findAll({
-        where: { roomId },
-        attributes: ["userId"],
-      });
-
-      participants.forEach((participant) => {
-        console.log(
-          `Sending message to user ${participant.userId} in room ${roomId}`
-        );
-        socket.to(roomId.toString()).emit("chat message", {
-          roomId,
-          content: message,
-          user: {
-            id: user.id,
-            name: user.name,
-            profile_image: user.profile_image,
-          },
-        });
+      io.to(roomId.toString()).emit("chat message", {
+        roomId,
+        content: message,
+        user: {
+          id: user.id,
+          name: user.name,
+          profile_image: user.profile_image,
+        },
       });
     } catch (error) {
       console.error("Error in chat message in room:", error);

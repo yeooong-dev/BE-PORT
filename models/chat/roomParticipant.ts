@@ -1,10 +1,13 @@
-import { Model, DataTypes, Sequelize } from "sequelize";
+import { Sequelize, DataTypes, Model } from "sequelize";
+import createUserModel, { UserModel } from "../user";
 
 export class RoomParticipant extends Model {
   public roomId!: number;
   public userId!: number;
   public joinedAt!: Date;
   public leftAt!: Date | null;
+  public user!: UserModel;
+  public isVisible!: boolean;
 }
 
 export const initRoomParticipant = (sequelize: Sequelize) => {
@@ -28,11 +31,23 @@ export const initRoomParticipant = (sequelize: Sequelize) => {
         type: DataTypes.DATE,
         allowNull: true,
       },
+      isVisible: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: true,
+      },
     },
     {
-      tableName: "room_participants",
       sequelize,
+      tableName: "room_participants",
       timestamps: false,
     }
   );
+
+  const UserModel = createUserModel(sequelize);
+
+  RoomParticipant.belongsTo(UserModel, {
+    foreignKey: "userId",
+    as: "user",
+  });
 };

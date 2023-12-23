@@ -1,10 +1,14 @@
 import { Model, DataTypes, Sequelize } from "sequelize";
+import { UserModel } from "../user";
+import { RoomParticipant } from "./roomParticipant";
 
 export class Room extends Model {
   public id!: number;
   public name!: string;
   public image_url!: string | null;
   public readonly createdAt!: Date;
+  public participants!: RoomParticipant[];
+  public addUsers!: (userIds: number[], options?: any) => Promise<void>;
 }
 
 export const initRoom = (sequelize: Sequelize) => {

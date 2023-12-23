@@ -1,4 +1,5 @@
 import { Model, DataTypes, Sequelize } from "sequelize";
+import { UserModel } from "../user";
 
 export class Chat extends Model {
   public id!: number;
@@ -6,6 +7,7 @@ export class Chat extends Model {
   public userId!: number;
   public message!: string;
   public createdAt!: Date;
+  public user?: UserModel;
 }
 
 export const initChat = (sequelize: Sequelize) => {
