@@ -18,7 +18,7 @@ export const getInteractedUsers = async (req: Request, res: Response) => {
     }
 
     const userRooms = await RoomParticipant.findAll({
-      where: { userId },
+      where: { userId, isVisible: true },
       attributes: ["roomId"],
     });
 
@@ -144,10 +144,8 @@ export const checkIfRoomExists = async (req: Request, res: Response) => {
     });
 
     const existingRoom = rooms.find((room) => {
-      const participantIds = room.participants
-        .map((p) => p.userId)
-        .sort((a, b) => a - b);
-      return JSON.stringify(userIds) === JSON.stringify(participantIds);
+      const participantIds = room.participants.map((p) => p.userId).sort();
+      return userIds.sort().toString() === participantIds.sort().toString();
     });
 
     if (existingRoom) {
@@ -161,47 +159,44 @@ export const checkIfRoomExists = async (req: Request, res: Response) => {
   }
 };
 
+async function findExistingRoom(userIds: number[]): Promise<Room | null> {
+  const rooms = await Room.findAll({
+    include: [
+      {
+        model: RoomParticipant,
+        as: "participants",
+        attributes: ["userId"],
+      },
+    ],
+  });
+
+  const existingRoom = rooms.find((room) => {
+    const participantIds = room.participants.map((p) => p.userId).sort();
+    return userIds.sort().toString() === participantIds.sort().toString();
+  });
+
+  return existingRoom || null;
+}
+
 export const createRoom = async (req: Request, res: Response) => {
-  try {
-    const { userIds, name } = req.body;
-    if (!name) throw new Error("Room name is required");
+  const { userIds, name } = req.body;
+  if (!name) throw new Error("Room name is required");
 
-    const existingRooms = await Room.findAll({
-      include: [
-        {
-          model: RoomParticipant,
-          as: "participants",
-          attributes: ["userId"],
-        },
-      ],
-    });
-
-    const existingRoom = existingRooms.find((room) => {
-      const participantIds = room.participants.map((p) => p.userId).sort();
-      return (
-        participantIds.length === userIds.length &&
-        participantIds.every((value, index) => value === userIds.sort()[index])
-      );
-    });
-
-    if (existingRoom) {
-      return res.json(existingRoom);
-    }
-
-    const room = await Room.create({ name });
-    const participants = userIds.map((userId: any) => ({
-      roomId: room.id,
-      userId,
-      joinedAt: new Date(),
-    }));
-
-    await RoomParticipant.bulkCreate(participants);
-
-    return res.json(room);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "An unexpected error occurred" });
+  const existingRoom = await findExistingRoom(userIds);
+  if (existingRoom) {
+    return res.json(existingRoom);
   }
+
+  const newRoom = await Room.create({ name });
+  const participants = userIds.map((userId: any) => ({
+    roomId: newRoom.id,
+    userId,
+    joinedAt: new Date(),
+    isVisible: true,
+  }));
+
+  await RoomParticipant.bulkCreate(participants);
+  return res.json(newRoom);
 };
 
 export const postMessage = async (req: Request, res: Response) => {
@@ -225,8 +220,12 @@ export const postMessage = async (req: Request, res: Response) => {
         profile_image: user.profile_image,
       },
     };
-    console.log(`Emitting chat message to room ${roomId}`, chatData);
+
     io.to(String(roomId)).emit("chat message", chatData);
+    io.to(String(userId)).emit("update chat list", {
+      roomId,
+      lastMessage: chatData.content,
+    });
 
     const participants = await RoomParticipant.findAll({
       where: { roomId },
@@ -293,23 +292,10 @@ export const removeUserFromRoom = async (req: Request, res: Response) => {
     const roomId = parseInt(req.params.roomId);
     const userId = parseInt(req.params.userId);
 
-    if (isNaN(roomId) || isNaN(userId)) {
-      return res.status(400).json({ error: "Invalid room ID or user ID" });
-    }
-
-    const result = await RoomParticipant.update(
+    await RoomParticipant.update(
       { isVisible: false },
-      {
-        where: {
-          roomId: roomId,
-          userId: userId,
-        },
-      }
+      { where: { roomId, userId } }
     );
-
-    if (result[0] === 0) {
-      return res.status(404).json({ error: "Room participant not found" });
-    }
 
     res.json({ success: true });
   } catch (error) {

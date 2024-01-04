@@ -18,7 +18,6 @@ import { defineRelations } from "./models/chat/defineRelations";
 import { initSocket } from "./socket";
 import { Chat } from "./models/chat/chat";
 import User from "./models/user";
-import { RoomParticipant } from "./models/chat/roomParticipant";
 
 interface MyJwtPayload {
   id: number;
@@ -70,6 +69,32 @@ app.use(async (req, res, next) => {
   next();
 });
 
+async function getUpdatedChatListForRoom(roomId: number) {
+  try {
+    const chats = await Chat.findAll({
+      where: { roomId },
+      include: [
+        {
+          model: UserModel,
+          as: "user",
+          attributes: ["id", "name", "profile_image"],
+        },
+      ],
+      order: [["createdAt", "DESC"]],
+      limit: 10,
+    });
+
+    return chats.map((chat) => ({
+      id: chat.id,
+      message: chat.message,
+      user: chat.user,
+    }));
+  } catch (error) {
+    console.error("Error fetching chat list for room:", error);
+    return [];
+  }
+}
+
 io.on("connection", (socket) => {
   socket.on("join room", (roomId) => {
     socket.join(roomId.toString());
@@ -95,15 +120,26 @@ io.on("connection", (socket) => {
         console.error("User not found for id:", userId);
         return;
       }
-      io.to(roomId.toString()).emit("chat message", {
+
+      const updatedChatList = await getUpdatedChatListForRoom(roomId);
+      console.log("Updated Chat List:", updatedChatList);
+
+      const newMessageData = {
+        id: chat.id,
         roomId,
-        content: message,
+        message: chat.message,
         user: {
-          id: user.id,
+          id: userId,
           name: user.name,
           profile_image: user.profile_image,
         },
+      };
+
+      io.to(roomId.toString()).emit("new message", {
+        messageData: newMessageData,
+        updatedChatList,
       });
+      io.to(roomId.toString()).emit("updated chat list", updatedChatList);
     } catch (error) {
       console.error("Error in chat message in room:", error);
     }
