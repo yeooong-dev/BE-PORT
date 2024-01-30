@@ -5,6 +5,7 @@ import { validateRegistrationForm } from "../validation/userValidation";
 import sequelize from "../config/database";
 import { ValidationError } from "sequelize";
 import jwt from "jsonwebtoken";
+import { v4 as uuidv4 } from "uuid";
 
 const UserModel = User(sequelize);
 const SALT_ROUNDS = parseInt(process.env.SALT_ROUNDS || "10");
@@ -24,6 +25,57 @@ export const checkEmail = async (req: Request, res: Response) => {
   } catch (error) {
     console.error("이메일 중복 확인 실패:", error);
     res.status(400).json({ message: "아이디 중복 확인에 실패했습니다." });
+  }
+};
+
+// 기업 회원가입 처리
+export const registerCompany = async (req: Request, res: Response) => {
+  const { email, company_name, password, passwordConfirm } = req.body as {
+    email: string;
+    company_name: string;
+    password: string;
+    passwordConfirm: string;
+  };
+
+  // 폼 유효성 검사
+  const isFormValid = validateRegistrationForm(email, company_name, password);
+  if (!isFormValid) {
+    console.log("유효하지 않은 폼");
+    return res
+      .status(400)
+      .json({ message: "유효하지 않은 입력값이 있습니다." });
+  }
+
+  if (password !== passwordConfirm) {
+    return res
+      .status(400)
+      .json({ message: "비밀번호와 비밀번호 확인이 일치하지 않습니다." });
+  }
+
+  try {
+    const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
+    const fullUuid = uuidv4();
+    const companyCode = fullUuid.split("-")[0];
+
+    const newCompanyUser: UserAttributes = {
+      email,
+      company_name,
+      password: hashedPassword,
+      company_code: companyCode,
+    };
+    const createdUser = await UserModel.create(newCompanyUser);
+    console.log("Created Company User: ", createdUser.get());
+    res.status(200).json({ message: "기업 회원가입에 성공했습니다." });
+  } catch (error) {
+    console.error("기업 회원가입 중 에러 발생", error);
+    if (error instanceof ValidationError) {
+      // Sequelize 유효성 검사 에러 처리
+      console.error("Sequelize 유효성 검사 에러:", error);
+      res.status(400).json({ message: error.errors[0].message });
+    } else {
+      console.error("기업 회원가입 실패", error);
+      res.status(500).json({ message: "기업 회원가입에 실패했습니다." });
+    }
   }
 };
 

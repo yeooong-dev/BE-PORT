@@ -7,6 +7,7 @@ import { Op } from "sequelize";
 import { RoomParticipant } from "../models/chat/roomParticipant";
 import { getIO } from "../socket";
 import { Server as SocketIOServer } from "socket.io";
+import moment from "moment-timezone";
 
 const UserModel = User(sequelize);
 
@@ -45,7 +46,7 @@ export const getInteractedUsers = async (req: Request, res: Response) => {
 
         const otherUser = await UserModel.findOne({
           where: { id: otherUserId },
-          attributes: ["id", "name", "profile_image"],
+          attributes: ["id", "name", "profile_image", "company_name"],
         });
 
         return {
@@ -68,7 +69,7 @@ export const getUsers = async (req: Request, res: Response) => {
   try {
     const currentUserId = req.user?.id;
     const users = await UserModel.findAll({
-      attributes: ["id", "name", "profile_image"],
+      attributes: ["id", "name", "profile_image", "company_name"],
       where: {
         id: {
           [Op.ne]: currentUserId,
@@ -85,9 +86,10 @@ export const getUsers = async (req: Request, res: Response) => {
 export const getRoom = async (req: Request, res: Response) => {
   try {
     const roomId = parseInt(req.params.roomId, 10);
+    const userId = req.user?.id;
 
-    if (isNaN(roomId)) {
-      return res.status(400).json({ error: "Invalid room ID" });
+    if (isNaN(roomId) || !userId) {
+      return res.status(400).json({ error: "Invalid room ID or user ID" });
     }
 
     const room = await Room.findByPk(roomId, {
@@ -99,9 +101,16 @@ export const getRoom = async (req: Request, res: Response) => {
             {
               model: UserModel,
               as: "user",
-              attributes: ["id", "name", "profile_image"],
+              attributes: ["id", "name", "profile_image", "company_name"],
             },
           ],
+          required: false,
+        },
+        {
+          model: RoomParticipant,
+          as: "participants",
+          attributes: ["userId", "isVisible", "leftAt"],
+          required: false,
         },
       ],
     });
@@ -109,6 +118,24 @@ export const getRoom = async (req: Request, res: Response) => {
     if (!room) {
       return res.json({});
     }
+
+    // 사용자가 마지막으로 채팅방을 나간 시간 확인
+    const roomParticipant = await RoomParticipant.findOne({
+      where: { roomId, userId },
+    });
+
+    if (roomParticipant && roomParticipant.isVisible === false) {
+      if (roomParticipant.leftAt) {
+        const leftAt = new Date(roomParticipant.leftAt).getTime();
+        room.chats = room.chats?.filter(
+          (chat) => new Date(chat.createdAt).getTime() > leftAt
+        );
+      } else {
+        room.chats = [];
+      }
+      console.log("Filtered messages for user:", userId, room.chats);
+    }
+
     res.json(room);
   } catch (error) {
     console.error(error);
@@ -180,7 +207,9 @@ async function findExistingRoom(userIds: number[]): Promise<Room | null> {
 
 export const createRoom = async (req: Request, res: Response) => {
   const { userIds, name } = req.body;
-  if (!name) throw new Error("Room name is required");
+  if (!name) {
+    return res.status(400).json({ error: "Room name is required" });
+  }
 
   const existingRoom = await findExistingRoom(userIds);
   if (existingRoom) {
@@ -218,6 +247,7 @@ export const postMessage = async (req: Request, res: Response) => {
         id: user.id,
         name: user.name,
         profile_image: user.profile_image,
+        company_name: user.company_name,
       },
     };
 
@@ -271,7 +301,7 @@ async function updateChatList(userId: number, io: SocketIOServer) {
 
       const otherUser = await UserModel.findOne({
         where: { id: otherUserId },
-        attributes: ["id", "name", "profile_image"],
+        attributes: ["id", "name", "profile_image", "company_name"],
       });
 
       return {
@@ -289,15 +319,40 @@ async function updateChatList(userId: number, io: SocketIOServer) {
 
 export const removeUserFromRoom = async (req: Request, res: Response) => {
   try {
-    const roomId = parseInt(req.params.roomId);
-    const userId = parseInt(req.params.userId);
+    const roomId = parseInt(req.params.roomId, 10);
+    const userId = parseInt(req.params.userId, 10);
 
-    await RoomParticipant.update(
-      { isVisible: false },
-      { where: { roomId, userId } }
+    console.log(
+      `Removing user from room - roomId: ${roomId}, userId: ${userId}`
     );
 
-    res.json({ success: true });
+    if (isNaN(roomId) || isNaN(userId)) {
+      return res.status(400).json({ error: "Invalid room or user ID" });
+    }
+
+    const roomParticipant = await RoomParticipant.findOne({
+      where: { roomId, userId },
+    });
+
+    if (!roomParticipant) {
+      console.log(
+        `User ${userId} not found in room ${roomId}, no action needed`
+      );
+      return res.status(404).json({ error: "User not found in room" });
+    }
+
+    if (roomParticipant.isVisible) {
+      const currentTime = moment().tz("Asia/Seoul").toDate();
+      await RoomParticipant.update(
+        { isVisible: false, leftAt: currentTime },
+        { where: { roomId, userId } }
+      );
+      res.json({ success: true });
+    } else {
+      // 이미 isVisible이 false인 경우에 대한 처리
+      console.log(`User ${userId} already removed from room ${roomId}`);
+      res.json({ success: true, message: "User already removed from room" });
+    }
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "An unexpected error occurred" });

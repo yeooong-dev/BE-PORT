@@ -8,6 +8,6 @@ router.get("/users", chatController.getUsers);
 router.post("/room", chatController.createRoom);
 router.get("/room/:roomId", chatController.getRoom);
 router.post("/room/:roomId/message", chatController.postMessage);
-router.put("/room/:roomId/user/:userId", chatController.removeUserFromRoom);
+router.delete("/room/:roomId/user/:userId", chatController.removeUserFromRoom);
 
 export default router;

@@ -132,6 +132,7 @@ export const updateName = async (req: Request, res: Response) => {
     const newName = req.body.newName;
     const email = req.body.email;
     const password = req.body.password;
+    const isCompany = req.body.isCompany;
 
     const user = await UserModel.findByPk(userId);
     if (!user) {
@@ -148,7 +149,11 @@ export const updateName = async (req: Request, res: Response) => {
       throw new Error("Password does not match");
     }
 
-    user.name = newName;
+    if (isCompany) {
+      user.company_name = newName;
+    } else {
+      user.name = newName;
+    }
     await user.save();
 
     res.json({ message: "Name updated successfully" });
