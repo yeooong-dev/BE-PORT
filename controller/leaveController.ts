@@ -12,8 +12,17 @@ const CompanyModel = Company(sequelize);
 export const getLeaves = async (req: Request, res: Response) => {
   try {
     const dateString = req.query.date as string;
+    const userId = req.user ? req.user.id : null;
 
-    // 타임존을 고려하여 시작 날짜와 다음 날짜 구하기
+    if (!userId) {
+      return res.status(401).send("User not authenticated");
+    }
+
+    const user = await UserModel.findByPk(userId);
+    if (!user || !user.company_code) {
+      return res.status(400).send("Company not found for the user");
+    }
+
     const startDate = moment
       .tz(dateString, "Asia/Seoul")
       .startOf("day")
@@ -30,8 +39,9 @@ export const getLeaves = async (req: Request, res: Response) => {
           [Op.gte]: startDate,
           [Op.lt]: endDate,
         },
+        "$User.company_code$": user.company_code,
       },
-      include: [{ model: sequelize.model("User"), attributes: ["name"] }],
+      include: [{ model: UserModel, attributes: ["name"] }],
     });
     res.json(leaves);
   } catch (error: any) {
@@ -46,96 +56,149 @@ export const applyLeave = async (req: Request, res: Response) => {
     const userId = req.user ? req.user.id : null;
 
     if (!userId) {
-      console.error("User not authenticated");
-      return res.status(401).send("User not authenticated");
+      console.error("사용자 인증 실패");
+      return res.status(401).send("사용자 인증 실패");
     }
 
-    // 클라이언트에서 보낸 날짜를 직접 사용
     const localDateString = moment.tz(date, "Asia/Seoul").format("YYYY-MM-DD");
 
-    // 오늘 이전의 날짜인지 확인
     if (
       moment
         .tz("Asia/Seoul")
         .isAfter(moment(localDateString).tz("Asia/Seoul").endOf("day"))
     ) {
-      return res.status(400).send("Invalid or past date");
+      return res.status(400).send("유효하지 않거나 지난 날짜입니다.");
     }
 
-    // 사용자 정보와 기업 설정 가져오기
     const user = await UserModel.findByPk(userId);
     if (!user || !user.company_code) {
-      return res.status(400).send("Company not found for the user");
+      return res.status(400).send("사용자의 회사를 찾을 수 없습니다.");
     }
+
+    if (user.isCompany) {
+      return res.status(403).send("기업은 연차신청을 할 수 없습니다.");
+    }
+
     const company = await CompanyModel.findOne({
       where: { company_code: user.company_code },
     });
-    if (!company) {
-      return res.status(400).send("Company settings not found");
+    if (!company || !company.departments) {
+      return res
+        .status(400)
+        .send("회사 설정 또는 부서 정보를 찾을 수 없습니다.");
     }
 
-    // 하루 연차 신청 가능 인원수 검사
-    const dailyLeaveCount = await Leave.count({
+    const existingLeave = await Leave.findOne({
       where: {
+        userId,
         date: localDateString,
       },
     });
 
-    const dailyMaxLeaves =
-      company.dailyMaxLeaves != null ? company.dailyMaxLeaves : 2;
-
-    if (dailyLeaveCount >= dailyMaxLeaves) {
-      return res
-        .status(400)
-        .send("Leave application limit reached for this date");
+    if (existingLeave) {
+      return res.status(400).send("이미 해당 날짜에 신청하셨습니다.");
     }
 
-    // 연간 연차 사용 횟수 검사
-    const annualLeaveUsed = await Leave.count({
-      where: {
-        userId,
-        date: {
-          [Op.gte]: moment().startOf("year").toDate(),
-          [Op.lt]: moment().endOf("year").toDate(),
-        },
-      },
-    });
+    let departmentsCopy = JSON.parse(JSON.stringify(company.departments));
+    let employeeUpdated = false;
 
-    const annualLeaveLimit =
-      company.annualLeaveLimit != null ? company.annualLeaveLimit : 12;
-
-    if (annualLeaveUsed >= annualLeaveLimit) {
-      return res.status(400).send("Annual leave limit reached for the user");
+    for (const departmentName in departmentsCopy) {
+      for (const employeeName in departmentsCopy[departmentName]) {
+        if (
+          departmentsCopy[departmentName][employeeName].email === user.email
+        ) {
+          if (
+            departmentsCopy[departmentName][employeeName].annualLeaveLimit > 0
+          ) {
+            departmentsCopy[departmentName][employeeName].annualLeaveLimit -= 1;
+            employeeUpdated = true;
+            break;
+          } else {
+            return res.status(400).send("사용 가능한 연차가 없습니다.");
+          }
+        }
+      }
+      if (employeeUpdated) break;
     }
 
-    // 연차 신청
+    if (!employeeUpdated) {
+      return res.status(404).send("직원을 찾을 수 없습니다.");
+    }
+
+    await company.update({ departments: departmentsCopy });
+
     const leave = await Leave.create({
       date: localDateString,
       userId,
       status: "PENDING",
     });
 
-    res.json(leave);
+    return res.json({
+      message: "신청 완료되었습니다.",
+      leave: leave,
+    });
   } catch (error: any) {
-    console.error("Error in applyLeave:", error);
-    res.status(500).send("Internal Server Error: " + error.message);
+    console.error("연차 신청 오류:", error);
+    return res.status(500).send("서버 내부 오류 " + error.message);
   }
 };
 
-// 연차 신청 삭제
+// 연차 신청 취소
 export const deleteLeave = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params; // 연차 신청 ID
-    const result = await Leave.destroy({
-      where: { id },
+    const { id } = req.params;
+    const userId = req.user ? req.user.id : null;
+
+    if (!userId) {
+      console.error("User not authenticated");
+      return res.status(401).send("User not authenticated");
+    }
+
+    const user = await UserModel.findByPk(userId);
+    if (!user || !user.company_code) {
+      return res.status(400).send("Company not found for the user");
+    }
+
+    const leave = await Leave.findOne({ where: { id } });
+    if (!leave) {
+      return res.status(404).send({ message: "Leave application not found" });
+    }
+
+    await Leave.destroy({ where: { id } });
+
+    const company = await CompanyModel.findOne({
+      where: { company_code: user.company_code },
     });
 
-    if (result > 0) {
-      res.send({ message: "Leave application deleted successfully" });
+    if (company && company.departments) {
+      let departmentsCopy = JSON.parse(JSON.stringify(company.departments));
+      let employeeUpdated = false;
+
+      Object.keys(departmentsCopy).forEach((departmentName) => {
+        Object.keys(departmentsCopy[departmentName]).forEach((employeeName) => {
+          let employee = departmentsCopy[departmentName][employeeName];
+          if (employee.email === user.email) {
+            employee.annualLeaveLimit += 1;
+            employeeUpdated = true;
+          }
+        });
+      });
+
+      if (employeeUpdated) {
+        await company.update(
+          { departments: departmentsCopy },
+          { fields: ["departments"] }
+        );
+
+        res.send({ message: "취소 완료되었습니다." });
+      } else {
+        return res.status(404).send("Employee not found");
+      }
     } else {
       res.status(404).send({ message: "Leave application not found" });
     }
   } catch (error: any) {
+    console.error("Error during leave deletion:", error);
     res.status(500).send(error.message);
   }
 };

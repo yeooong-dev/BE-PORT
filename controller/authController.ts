@@ -62,6 +62,7 @@ export const registerCompany = async (req: Request, res: Response) => {
       company_name,
       password: hashedPassword,
       company_code: companyCode,
+      isCompany: true,
     };
     const createdUser = await UserModel.create(newCompanyUser);
     console.log("Created Company User: ", createdUser.get());
@@ -135,13 +136,13 @@ export const login = async (req: Request, res: Response) => {
     const user = await UserModel.findOne({ where: { email } });
     console.log("User found: ", user ? user.get() : null);
     if (!user) {
-      console.log("로그인 실패: 등록되어 있지 않은 사용자입니다.");
-      return res.status(400);
+      return res
+        .status(400)
+        .json({ message: "등록되어 있지 않은 사용자입니다." });
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      console.log("로그인 실패: 비밀번호가 맞지 않습니다.");
       return res.status(400).json({ message: "비밀번호가 맞지 않습니다." });
     }
 

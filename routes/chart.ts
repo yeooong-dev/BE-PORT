@@ -18,4 +18,8 @@ router.post("/registerEmployee", chartController.registerEmployee);
 // 직원 삭제
 router.post("/deleteEmployee", chartController.deleteEmployee);
 
+// 기업 연차 설정
+router.get("/getDailyMaxLeaves", chartController.getDailyMaxLeaves);
+router.post("/updateDailyMaxLeaves", chartController.updateDailyMaxLeaves);
+
 export default router;

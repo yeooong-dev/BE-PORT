@@ -4,7 +4,6 @@ export interface CompanyAttributes {
   id?: number;
   company_code: string;
   dailyMaxLeaves?: number | null;
-  annualLeaveLimit?: number | null;
   ceoName?: string;
   departments?: DepartmentAttributes;
 }
@@ -16,6 +15,7 @@ export interface DepartmentAttributes {
 export interface EmployeeAttributes {
   email: string;
   joinYear: string;
+  annualLeaveLimit: number;
 }
 
 export interface CompanyModel
@@ -38,10 +38,6 @@ const Company = (sequelize: Sequelize): ModelCtor<CompanyModel> => {
         unique: true,
       },
       dailyMaxLeaves: {
-        type: DataTypes.INTEGER,
-        allowNull: true,
-      },
-      annualLeaveLimit: {
         type: DataTypes.INTEGER,
         allowNull: true,
       },

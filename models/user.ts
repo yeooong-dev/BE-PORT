@@ -8,6 +8,8 @@ export interface UserAttributes {
   password: string;
   profile_image?: string | null;
   company_code?: string | null;
+  isEmployeeRegistered?: boolean;
+  isCompany?: boolean;
 }
 
 export interface UserModel extends Model<UserAttributes>, UserAttributes {}
@@ -45,6 +47,16 @@ const User = (sequelize: Sequelize): ModelCtor<UserModel> => {
       company_code: {
         type: DataTypes.STRING(255),
         allowNull: true,
+      },
+      isEmployeeRegistered: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+      },
+      isCompany: {
+        type: DataTypes.BOOLEAN,
+        allowNull: true,
+        defaultValue: false,
       },
     },
     {
