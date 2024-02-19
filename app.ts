@@ -35,7 +35,7 @@ const UserModel = User(sequelize);
 
 app.use(
   cors({
-    origin: "*",
+    origin: ["https://port-six-theta.vercel.app"],
     methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
     credentials: true,
     optionsSuccessStatus: 204,

@@ -6,10 +6,7 @@ let io: SocketIOServer;
 export const initSocket = (server: http.Server): SocketIOServer => {
   io = new SocketIOServer(server, {
     cors: {
-      origin: [
-        "http://localhost:3000",
-        "https://fe-port-yeooong-dev.vercel.app",
-      ],
+      origin: ["https://port-six-theta.vercel.app"],
       methods: ["GET", "POST"],
     },
   });
