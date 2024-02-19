@@ -15,12 +15,12 @@ export const getLeaves = async (req: Request, res: Response) => {
     const userId = req.user ? req.user.id : null;
 
     if (!userId) {
-      return res.status(401).send("User not authenticated");
+      return res.status(401).send("사용자가 인증되지 않았습니다.");
     }
 
     const user = await UserModel.findByPk(userId);
     if (!user || !user.company_code) {
-      return res.status(400).send("Company not found for the user");
+      return res.status(400).send("사용자의 회사를 찾을 수 없습니다.");
     }
 
     const startDate = moment
@@ -150,55 +150,58 @@ export const deleteLeave = async (req: Request, res: Response) => {
     const userId = req.user ? req.user.id : null;
 
     if (!userId) {
-      console.error("User not authenticated");
-      return res.status(401).send("User not authenticated");
+      return res.status(401).send("사용자가 인증되지 않았습니다.");
     }
 
     const user = await UserModel.findByPk(userId);
+
     if (!user || !user.company_code) {
-      return res.status(400).send("Company not found for the user");
+      return res.status(400).send("사용자의 회사를 찾을 수 없습니다.");
     }
 
+    // 연차 신청 삭제
     const leave = await Leave.findOne({ where: { id } });
+
     if (!leave) {
-      return res.status(404).send({ message: "Leave application not found" });
+      return res.status(404).send("연차 신청을 찾을 수 없습니다.");
     }
 
     await Leave.destroy({ where: { id } });
 
+    // 회사 정보 업데이트
     const company = await CompanyModel.findOne({
       where: { company_code: user.company_code },
     });
 
-    if (company && company.departments) {
-      let departmentsCopy = JSON.parse(JSON.stringify(company.departments));
-      let employeeUpdated = false;
-
-      Object.keys(departmentsCopy).forEach((departmentName) => {
-        Object.keys(departmentsCopy[departmentName]).forEach((employeeName) => {
-          let employee = departmentsCopy[departmentName][employeeName];
-          if (employee.email === user.email) {
-            employee.annualLeaveLimit += 1;
-            employeeUpdated = true;
-          }
-        });
-      });
-
-      if (employeeUpdated) {
-        await company.update(
-          { departments: departmentsCopy },
-          { fields: ["departments"] }
-        );
-
-        res.send({ message: "취소 완료되었습니다." });
-      } else {
-        return res.status(404).send("Employee not found");
-      }
-    } else {
-      res.status(404).send({ message: "Leave application not found" });
+    if (!company || !company.departments) {
+      return res.status(404).send("회사 정보를 찾을 수 없습니다.");
     }
+
+    let departmentsCopy = JSON.parse(JSON.stringify(company.departments));
+    let employeeUpdated = false;
+
+    for (const departmentName in departmentsCopy) {
+      let employees = departmentsCopy[departmentName];
+      for (const employeeName in employees) {
+        let employee = employees[employeeName];
+        if (employee.email === user.email) {
+          employee.annualLeaveLimit += 1;
+          employeeUpdated = true;
+          break;
+        }
+      }
+      if (employeeUpdated) break;
+    }
+
+    if (!employeeUpdated) {
+      return res.status(404).send("직원을 찾을 수 없습니다.");
+    }
+
+    await company.update({ departments: departmentsCopy });
+
+    res.send("취소 완료되었습니다.");
   } catch (error: any) {
-    console.error("Error during leave deletion:", error);
-    res.status(500).send(error.message);
+    console.error("서버 오류:", error.message);
+    res.status(500).send("서버 오류: " + error.message);
   }
 };

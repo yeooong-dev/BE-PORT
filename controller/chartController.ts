@@ -9,7 +9,7 @@ export const getCeoName = async (req: Request, res: Response) => {
   try {
     const user = await UserModel.findByPk(req.user.id);
     if (!user || !user.company_code) {
-      return res.status(404).send({ message: "Company not found" });
+      return res.status(404).send({ message: "회사를 찾을 수 없습니다." });
     }
 
     const company = await CompanyModel.findOne({
@@ -21,7 +21,9 @@ export const getCeoName = async (req: Request, res: Response) => {
     }
     res.send({ ceoName: company.ceoName });
   } catch (error) {
-    res.status(500).send({ message: "Error retrieving CEO name" });
+    res
+      .status(500)
+      .send({ message: "CEO 이름을 검색하는 중 오류가 발생했습니다." });
   }
 };
 
@@ -31,7 +33,9 @@ export const updateCeoName = async (req: Request, res: Response) => {
     const user = await UserModel.findByPk(req.user.id);
 
     if (!user || !user.company_code) {
-      return res.status(404).send({ message: "User or company not found" });
+      return res
+        .status(404)
+        .send({ message: "사용자 또는 회사를 찾을 수 없습니다." });
     }
 
     let company = await CompanyModel.findOne({
@@ -47,21 +51,23 @@ export const updateCeoName = async (req: Request, res: Response) => {
       await company.update({ ceoName });
     }
 
-    res.send({ message: "CEO name updated successfully" });
+    res.send({ message: "CEO 이름이 성공적으로 업데이트 되었습니다." });
   } catch (error) {
-    res.status(500).send({ message: "Error updating CEO name" });
+    res
+      .status(500)
+      .send({ message: "CEO 이름을 업데이트 하는 중 오류가 발생했습니다." });
   }
 };
 
 export const getDepartments = async (req: Request, res: Response) => {
   try {
     if (!req.user || !req.user.id) {
-      return res.status(401).send({ message: "User not authenticated" });
+      return res.status(401).send({ message: "사용자가 인증되지 않았습니다." });
     }
 
     const user = await UserModel.findByPk(req.user.id);
     if (!user || !user.company_code) {
-      return res.status(404).send({ message: "Company not found" });
+      return res.status(404).send({ message: "회사를 찾을 수 없습니다." });
     }
 
     const company = await CompanyModel.findOne({
@@ -74,9 +80,9 @@ export const getDepartments = async (req: Request, res: Response) => {
       res.send({});
     }
   } catch (error: any) {
-    console.error("Error retrieving departments:", error);
+    console.error("부서 정보를 검색하는 중 오류 발생:", error);
     res.status(500).send({
-      message: "Error retrieving departments",
+      message: "부서 정보를 검색하는 중 오류가 발생했습니다.",
       error: error.toString(),
     });
   }
@@ -88,7 +94,9 @@ export const updateDepartments = async (req: Request, res: Response) => {
     const user = await UserModel.findByPk(req.user.id);
 
     if (!user || !user.company_code) {
-      return res.status(404).send({ message: "User or company not found" });
+      return res
+        .status(404)
+        .send({ message: "사용자 또는 회사를 찾을 수 없습니다." });
     }
 
     let company = await CompanyModel.findOne({
@@ -104,9 +112,11 @@ export const updateDepartments = async (req: Request, res: Response) => {
       await company.update({ departments: departments });
     }
 
-    res.send({ message: "Departments updated successfully" });
+    res.send({ message: "부서가 성공적으로 업데이트 되었습니다." });
   } catch (error) {
-    res.status(500).send({ message: "Error updating departments" });
+    res
+      .status(500)
+      .send({ message: "부서를 업데이트 하는 중 오류가 발생했습니다." });
   }
 };
 
@@ -118,14 +128,14 @@ export const deleteDepartment = async (req: Request, res: Response) => {
     if (!user || !user.company_code || !user.isCompany) {
       return res
         .status(404)
-        .send({ message: "Company not found or unauthorized" });
+        .send({ message: "회사를 찾을 수 없거나 권한이 없습니다." });
     }
 
     const company = await CompanyModel.findOne({
       where: { company_code: user.company_code },
     });
     if (!company) {
-      return res.status(404).send({ message: "Company not found" });
+      return res.status(404).send({ message: "회사를 찾을 수 없습니다." });
     }
 
     let departments = company.departments || {};
@@ -135,10 +145,12 @@ export const deleteDepartment = async (req: Request, res: Response) => {
 
     await company.update({ departments: updatedDepartments });
 
-    res.send({ message: "Department deleted successfully" });
+    res.send({ message: "부서가 성공적으로 삭제되었습니다." });
   } catch (error) {
-    console.error("Error deleting department:", error);
-    res.status(500).send({ message: "Error deleting department" });
+    console.error("부서를 삭제하는 중 오류 발생:", error);
+    res
+      .status(500)
+      .send({ message: "부서를 삭제하는 중 오류가 발생했습니다." });
   }
 };
 
@@ -163,7 +175,7 @@ export const registerEmployee = async (req: Request, res: Response) => {
 
     const user = await UserModel.findByPk(req.user.id);
     if (!user || !user.company_code) {
-      return res.status(404).send({ message: "Company not found" });
+      return res.status(404).send({ message: "회사를 찾을 수 없습니다." });
     }
 
     const company = await CompanyModel.findOne({
@@ -171,7 +183,7 @@ export const registerEmployee = async (req: Request, res: Response) => {
     });
 
     if (!company) {
-      return res.status(404).send({ message: "Company not found" });
+      return res.status(404).send({ message: "회사를 찾을 수 없습니다." });
     }
 
     let departments = company.departments || {};
@@ -201,10 +213,10 @@ export const registerEmployee = async (req: Request, res: Response) => {
       company_code: company.company_code,
     });
 
-    res.send({ message: "Employee registered successfully" });
+    res.send({ message: "직원이 성공적으로 등록되었습니다." });
   } catch (error) {
-    console.error("Error registering employee:", error);
-    res.status(500).send({ message: "Error registering employee" });
+    console.error(error);
+    res.status(500).send({ message: "직원 등록 중 오류가 발생했습니다." });
   }
 };
 
@@ -214,7 +226,7 @@ export const deleteEmployee = async (req: Request, res: Response) => {
   try {
     const user = await UserModel.findByPk(req.user.id);
     if (!user || !user.company_code) {
-      return res.status(404).send({ message: "Company not found" });
+      return res.status(404).send({ message: "회사를 찾을 수 없습니다." });
     }
 
     const company = await CompanyModel.findOne({
@@ -225,7 +237,7 @@ export const deleteEmployee = async (req: Request, res: Response) => {
       !company.departments ||
       !(departmentName in company.departments)
     ) {
-      return res.status(404).send({ message: "Department not found" });
+      return res.status(404).send({ message: "해당 부서를 찾을 수 없습니다." });
     }
 
     let found = false;
@@ -254,15 +266,15 @@ export const deleteEmployee = async (req: Request, res: Response) => {
         });
       }
 
-      res.send({ message: "Employee deleted successfully" });
+      res.send({ message: "직원이 성공적으로 삭제되었습니다." });
     } else {
       return res.status(404).send({
-        message: "Employee with email not found in the specified department",
+        message: "지정된 부서에서 해당 이메일을 가진 직원을 찾을 수 없습니다.",
       });
     }
   } catch (error) {
-    console.error("Error deleting employee:", error);
-    res.status(500).send({ message: "Error deleting employee" });
+    console.error(error);
+    res.status(500).send({ message: "직원 삭제 중 오류가 발생했습니다." });
   }
 };
 
@@ -270,7 +282,7 @@ export const getDailyMaxLeaves = async (req: Request, res: Response) => {
   try {
     const user = await UserModel.findByPk(req.user.id);
     if (!user || !user.company_code) {
-      return res.status(404).send({ message: "Company not found" });
+      return res.status(404).send({ message: "회사를 찾을 수 없습니다." });
     }
 
     const company = await CompanyModel.findOne({
@@ -282,7 +294,9 @@ export const getDailyMaxLeaves = async (req: Request, res: Response) => {
     }
     res.send({ dailyMaxLeaves: company.dailyMaxLeaves });
   } catch (error) {
-    res.status(500).send({ message: "Error retrieving dailyMaxLeaves" });
+    res
+      .status(500)
+      .send({ message: "dailyMaxLeaves 검색 중 오류가 발생했습니다." });
   }
 };
 
@@ -292,7 +306,9 @@ export const updateDailyMaxLeaves = async (req: Request, res: Response) => {
     const user = await UserModel.findByPk(req.user.id);
 
     if (!user || !user.company_code) {
-      return res.status(404).send({ message: "User or company not found" });
+      return res
+        .status(404)
+        .send({ message: "사용자 또는 회사를 찾을 수 없습니다." });
     }
 
     let company = await CompanyModel.findOne({
@@ -308,8 +324,10 @@ export const updateDailyMaxLeaves = async (req: Request, res: Response) => {
       await company.update({ dailyMaxLeaves });
     }
 
-    res.send({ message: "dailyMaxLeaves updated successfully" });
+    res.send({ message: "dailyMaxLeaves가 성공적으로 업데이트되었습니다." });
   } catch (error) {
-    res.status(500).send({ message: "Error updating dailyMaxLeaves" });
+    res
+      .status(500)
+      .send({ message: "dailyMaxLeaves 업데이트 중 오류가 발생했습니다." });
   }
 };

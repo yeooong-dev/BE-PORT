@@ -21,6 +21,7 @@ import { initSocket } from "./socket";
 import { Chat } from "./models/chat/chat";
 import User from "./models/user";
 import { RoomParticipant } from "./models/chat/roomParticipant";
+import { Op } from "sequelize";
 
 interface MyJwtPayload {
   id: number;
@@ -32,8 +33,6 @@ const server = http.createServer(app);
 const io = initSocket(server);
 const UserModel = User(sequelize);
 
-console.log("Socket.io instance initialized:", io);
-
 app.use(
   cors({
     origin: "*",
@@ -42,7 +41,6 @@ app.use(
     optionsSuccessStatus: 204,
   })
 );
-0;
 
 app.use(logger("dev"));
 app.use(express.urlencoded({ extended: true }));
@@ -69,16 +67,34 @@ app.use(async (req, res, next) => {
         req.user = decoded as MyJwtPayload;
       }
     } catch (error) {
-      console.error("Token verification failed:", error);
+      console.error("토큰 검증 실패:", error);
     }
   }
   next();
 });
 
-async function getUpdatedChatListForRoom(roomId: number) {
+async function getUpdatedChatListForRoom(roomId: number, userId?: number) {
+  console.log(
+    `채팅방 ${roomId}과 사용자 ${userId}에 대한 채팅 목록을 가져오는 중`
+  );
+
   try {
+    const roomParticipant = userId
+      ? await RoomParticipant.findOne({
+          where: { roomId, userId },
+        })
+      : null;
+    let whereClause = {
+      roomId,
+      ...(roomParticipant &&
+      roomParticipant.isVisible === false &&
+      roomParticipant.leftAt
+        ? { createdAt: { [Op.gt]: roomParticipant.leftAt } }
+        : {}),
+    };
+
     const chats = await Chat.findAll({
-      where: { roomId },
+      where: whereClause,
       include: [
         {
           model: UserModel,
@@ -96,130 +112,93 @@ async function getUpdatedChatListForRoom(roomId: number) {
       user: chat.user,
     }));
   } catch (error) {
-    console.error("Error fetching chat list for room:", error);
+    console.error("방에 대한 채팅 목록 가져오기 오류:", error);
     return [];
   }
 }
 
 io.on("connection", (socket) => {
   socket.on("join room", async (roomId, userId) => {
-    console.log(
-      `Join room event received for room: ${roomId} and user: ${userId}`
-    );
+    console.log(`[서버] 사용자 참가 (방 ID: ${roomId}, 사용자 ID: ${userId})`);
     socket.join(roomId.toString());
 
     try {
-      if (userId) {
+      const existingParticipant = await RoomParticipant.findOne({
+        where: { roomId, userId },
+      });
+
+      if (existingParticipant) {
         await RoomParticipant.update(
-          { isVisible: true },
+          { isVisible: true, leftAt: null, joinedAt: new Date() },
           { where: { roomId, userId } }
         );
       } else {
-        console.error("userId is undefined in join room event");
+        await RoomParticipant.create({
+          roomId,
+          userId,
+          isVisible: true,
+          joinedAt: new Date(),
+        });
       }
     } catch (error) {
-      console.error("Error updating room participant:", error);
+      console.error("방 참가자 업데이트 오류:", error);
     }
   });
 
   socket.on("join user room", (userId) => {
     socket.join(userId.toString());
-    console.log(`사용자 ${socket.id}가 개인 방 ${userId}에 참여했습니다.`);
   });
 
   socket.on("leave room", async ({ roomId, userId }) => {
-    console.log(`User ${userId} leaving room: ${roomId}`);
+    console.log(
+      `[서버] 사용자 나가기 (방 ID: ${roomId}, 사용자 ID: ${userId})`
+    );
+
     try {
+      console.log(
+        `[leave room] User ID: ${userId} is leaving Room ID: ${roomId}`
+      );
       await RoomParticipant.update(
         { isVisible: false, leftAt: new Date() },
         { where: { roomId, userId } }
       );
       socket.leave(roomId.toString());
-      console.log(`User ${userId} left room: ${roomId}`);
+      console.log(`User ${userId} left room ${roomId}`);
     } catch (error) {
-      console.error("Error in leave room:", error);
+      console.error("Error leaving room:", error);
     }
   });
 
   socket.on("chat message in room", async ({ roomId, message, userId }) => {
-    console.log(
-      `방 ${roomId}에서 사용자 ${userId}의 채팅 메시지 수신됨: ${message}`
-    );
-
     try {
-      if (!userId || !roomId) {
-        console.error("잘못된 사용자 ID 또는 방 ID:", userId, roomId);
-        return;
-      }
-
-      console.log(
-        `DB에 채팅 메시지 저장 시도: userId=${userId}, roomId=${roomId}, message=${message}`
-      );
       const chat = await Chat.create({ userId, roomId, message });
-      console.log(`DB에 저장된 채팅 메시지:`, chat);
-
-      if (!chat) {
-        console.error("Failed to create chat message");
-        return;
-      }
-
-      console.log(`사용자 ID ${userId}에 대한 정보 DB에서 조회 시도`);
       const user = await UserModel.findOne({ where: { id: userId } });
-      console.log(`UserModel.findOne 결과:`, user);
+
       if (!user) {
-        console.error("User not found for id:", userId);
+        console.error("메시지 보낸 사용자 정보를 찾을 수 없음");
         return;
       }
-
-      console.log(`방 ${roomId}의 업데이트된 채팅 목록 DB에서 조회 시도`);
-      const updatedChatList = await getUpdatedChatListForRoom(roomId);
-      console.log(`getUpdatedChatListForRoom 결과:`, updatedChatList);
-      if (!updatedChatList) {
-        console.error("Failed to fetch updated chat list");
-        return;
-      }
-
-      const newMessageData = {
-        id: chat.id,
-        roomId,
-        message: chat.message,
-        user: {
-          id: userId,
-          name: user.name,
-          profile_image: user.profile_image,
-        },
-      };
-      console.log("새 메시지 데이터 생성됨:", newMessageData);
-
-      try {
-        console.log(`Emitting new message to room: ${roomId}`);
-        io.to(roomId.toString()).emit("new message", {
-          messageData: newMessageData,
-          updatedChatList,
-        });
-        console.log(`New message event broadcasted to room: ${roomId}`);
-      } catch (error) {
-        console.error(`Error emitting new message to room: ${roomId}`, error);
-      }
-
-      console.log(`방 참가자들에게 업데이트된 채팅 목록 방송`);
 
       const participants = await RoomParticipant.findAll({
         where: { roomId, isVisible: true },
       });
 
       participants.forEach((participant) => {
-        if (participant.userId !== userId) {
-          io.to(participant.userId.toString()).emit("new message", {
-            messageData: newMessageData,
-            updatedChatList,
-          });
-        }
+        io.to(roomId.toString()).emit("new message", {
+          id: chat.id,
+          roomId,
+          message,
+          userId,
+          createdAt: chat.createdAt,
+          user: {
+            id: user.id,
+            name: user.name,
+            profile_image: user.profile_image,
+          },
+        });
       });
-      console.log(`방 참가자들에게 업데이트된 채팅 목록 방송됨`);
-    } catch (error: any) {
-      console.error("Error in chat message in room:", error.message);
-      console.error(error.stack);
+    } catch (error) {
+      console.error("메시지 처리 중 오류 발생", error);
     }
   });
 
@@ -231,10 +210,9 @@ io.on("connection", (socket) => {
 sequelize
   .sync()
   .then(() => {
-    console.log("Database synchronized");
     defineRelations();
   })
-  .catch((err) => console.error("Unable to synchronize the database:", err));
+  .catch((err) => console.error("데이터베이스를 동기화할 수 없음:", err));
 
 app.get("/", (req, res) => {
   res.send("Hello, BE-PORT!");
@@ -250,5 +228,5 @@ app.use("/leave", leaveRoutes);
 app.use("/chart", chartRoutes);
 
 server.listen(PORT, () => {
-  console.log(`Server with Socket.io is running on port ${PORT}`);
+  console.log(`Socket.io가 포트에서 실행 중인 서버 ${PORT}`);
 });

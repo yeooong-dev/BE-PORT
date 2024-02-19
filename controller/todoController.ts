@@ -12,13 +12,13 @@ export const todoAdd: ExtendedRequestHandler = async (req, res) => {
       const todo = await TodoInstance.create({ text, completed, user_id });
       res.json(todo);
     } else {
-      res.status(401).json({ error: "User not authenticated" });
+      res.status(401).json({ error: "사용자가 인증되지 않았습니다." });
     }
   } catch (error: unknown) {
     if (error instanceof Error) {
       res.status(500).json({ error: error.message });
     } else {
-      res.status(500).json({ error: "An unexpected error occurred" });
+      res.status(500).json({ error: "예상치 못한 오류가 발생했습니다." });
     }
   }
 };
@@ -32,7 +32,7 @@ export const todoGet: ExtendedRequestHandler = async (req, res) => {
     res.json(todos);
   } catch (error: unknown) {
     console.error(error);
-    res.status(500).json({ error: "An unexpected error occurred" });
+    res.status(500).json({ error: "예상치 못한 오류가 발생했습니다." });
   }
 };
 
@@ -55,11 +55,11 @@ export const todoUpdate: ExtendedRequestHandler = async (req, res) => {
       if (error instanceof Error) {
         res.status(500).json({ error: error.message });
       } else {
-        res.status(500).json({ error: "An unexpected error occurred" });
+        res.status(500).json({ error: "예상치 못한 오류가 발생했습니다." });
       }
     }
   } else {
-    res.status(401).json({ error: "User not authenticated" });
+    res.status(401).json({ error: "사용자가 인증되지 않았습니다." });
   }
 };
 
@@ -75,13 +75,13 @@ export const todoDelete: ExtendedRequestHandler = async (req, res) => {
       await TodoInstance.destroy({ where: { todo_id: todo_id, user_id } });
       res.json(todo);
     } else {
-      res.status(401).json({ error: "User not authenticated" });
+      res.status(401).json({ error: "사용자가 인증되지 않았습니다." });
     }
   } catch (error: unknown) {
     if (error instanceof Error) {
       res.status(500).json({ error: error.message });
     } else {
-      res.status(500).json({ error: "An unexpected error occurred" });
+      res.status(500).json({ error: "예상치 못한 오류가 발생했습니다." });
     }
   }
 };
@@ -99,16 +99,16 @@ export const todoToggleCheck: ExtendedRequestHandler = async (req, res) => {
         const updated = await todo.update({ completed: !todo.completed });
         res.json(updated);
       } else {
-        res.status(404).json({ error: "Todo not found" });
+        res.status(404).json({ error: "할 일을 찾을 수 없습니다." });
       }
     } catch (error: unknown) {
       if (error instanceof Error) {
         res.status(500).json({ error: error.message });
       } else {
-        res.status(500).json({ error: "An unexpected error occurred" });
+        res.status(500).json({ error: "예상치 못한 오류가 발생했습니다." });
       }
     }
   } else {
-    res.status(401).json({ error: "User not authenticated" });
+    res.status(401).json({ error: "사용자가 인증되지 않았습니다." });
   }
 };

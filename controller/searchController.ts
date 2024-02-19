@@ -65,7 +65,7 @@ export const search = async (req: Request, res: Response) => {
       calendar: calendarResults,
     });
   } catch (error) {
-    console.error("Error in search:", error);
-    res.status(500).send("An error occurred while searching.");
+    console.error(error);
+    res.status(500).send("검색 중 오류가 발생했습니다.");
   }
 };

@@ -13,8 +13,8 @@ export async function getSignedUrl(key: string): Promise<string> {
     });
     return signedUrl;
   } catch (error: any) {
-    console.error("Error creating signed URL", error.message);
-    throw new Error("Could not create signed URL: " + error.message);
+    console.error("URL 생성 오류", error.message);
+    throw new Error("URL을 생성할 수 없습니다: " + error.message);
   }
 }
 

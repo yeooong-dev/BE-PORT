@@ -27,24 +27,24 @@ export const imgAdd = async (req: Request, res: Response) => {
   try {
     const file = req.file as MulterS3File;
     if (!file) {
-      throw new Error("File not found");
+      throw new Error("파일을 찾을 수 없습니다.");
     }
 
     const userId = req.body.userId;
     if (!userId) {
-      throw new Error("User ID not provided");
+      throw new Error("사용자 ID가 제공되지 않았습니다.");
     }
 
     const user = await UserModel.findByPk(userId);
     if (!user) {
-      throw new Error("User not found");
+      throw new Error("사용자를 찾을 수 없습니다.");
     }
 
     const key = file.key;
     user.profile_image = key;
     await user.save();
 
-    res.json({ message: "Profile image uploaded successfully", file });
+    res.json({ message: "프로필 이미지가 성공적으로 업로드되었습니다.", file });
   } catch (error: any) {
     console.error(error);
     res.status(500).json({ error: error.message });
@@ -58,13 +58,13 @@ export const imgGet = async (req: Request, res: Response) => {
     const user = await UserModel.findByPk(userId);
 
     if (!user) {
-      res.status(404).json({ error: "User not found" });
+      res.status(404).json({ error: "사용자를 찾을 수 없습니다." });
       return;
     }
 
     if (!user.profile_image) {
       res.json({
-        message: "Profile image retrieved successfully",
+        message: "프로필 이미지가 성공적으로 검색되었습니다.",
         imageUrl: DEFAULT_IMAGE_URL,
       });
       return;
@@ -72,11 +72,11 @@ export const imgGet = async (req: Request, res: Response) => {
 
     const signedUrl = await getSignedUrl(user.profile_image);
     res.json({
-      message: "Profile image retrieved successfully",
+      message: "프로필 이미지가 성공적으로 검색되었습니다.",
       imageUrl: signedUrl,
     });
   } catch (error: any) {
-    console.error("Error:", error);
+    console.error(error);
     res.status(400).json({ error: error.message });
   }
 };
@@ -88,19 +88,22 @@ export const imgUpdate = async (req: Request, res: Response) => {
 
     const file = req.file as MulterS3File;
     if (!file) {
-      throw new Error("File not found");
+      throw new Error("파일을 찾을 수 없습니다.");
     }
 
     const user = await UserModel.findByPk(userId);
     if (!user) {
-      throw new Error("User not found");
+      throw new Error("사용자를 찾을 수 없습니다.");
     }
 
     const key = file.key;
     user.profile_image = key;
     await user.save();
 
-    res.json({ message: "Profile image updated successfully", file });
+    res.json({
+      message: "프로필 이미지가 성공적으로 업데이트되었습니다.",
+      file,
+    });
   } catch (error: any) {
     res.status(400).json({ error: error.message });
   }
@@ -113,13 +116,13 @@ export const imgDelete = async (req: Request, res: Response) => {
 
     const user = await UserModel.findByPk(userId);
     if (!user) {
-      throw new Error("User not found");
+      throw new Error("사용자를 찾을 수 없습니다.");
     }
 
     user.profile_image = null;
     await user.save();
 
-    res.json({ message: "Profile image deleted successfully" });
+    res.json({ message: "프로필 이미지가 성공적으로 삭제되었습니다." });
   } catch (error: any) {
     res.status(400).json({ error: error.message });
   }
@@ -136,17 +139,17 @@ export const updateName = async (req: Request, res: Response) => {
 
     const user = await UserModel.findByPk(userId);
     if (!user) {
-      throw new Error("User not found");
+      throw new Error("사용자를 찾을 수 없습니다.");
     }
 
     // 이메일 검증 추가
     if (user.email !== email) {
-      throw new Error("Email does not match");
+      throw new Error("이메일이 일치하지 않습니다.");
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      throw new Error("Password does not match");
+      throw new Error("비밀번호가 일치하지 않습니다.");
     }
 
     if (isCompany) {
@@ -156,7 +159,7 @@ export const updateName = async (req: Request, res: Response) => {
     }
     await user.save();
 
-    res.json({ message: "Name updated successfully" });
+    res.json({ message: "이름이 성공적으로 업데이트되었습니다." });
   } catch (error: any) {
     res.status(400).json({ error: error.message });
   }
@@ -172,11 +175,11 @@ export const updatePassword = async (req: Request, res: Response) => {
 
     const user = await UserModel.findByPk(userId);
     if (!user) {
-      throw new Error("User not found");
+      throw new Error("사용자를 찾을 수 없습니다.");
     }
 
     if (user.email !== email) {
-      throw new Error("Email does not match");
+      throw new Error("이메일이 일치하지 않습니다.");
     }
 
     if (newPassword !== confirmPassword) {
@@ -187,7 +190,7 @@ export const updatePassword = async (req: Request, res: Response) => {
     user.password = hashedPassword;
     await user.save();
 
-    res.json({ message: "Password updated successfully" });
+    res.json({ message: "비밀번호가 성공적으로 업데이트되었습니다." });
   } catch (error: any) {
     res.status(400).json({ error: error.message });
   }
@@ -201,12 +204,12 @@ export const deleteAccount = async (req: Request, res: Response) => {
 
     const user = await UserModel.findByPk(userId);
     if (!user) {
-      throw new Error("User not found");
+      throw new Error("사용자를 찾을 수 없습니다.");
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      throw new Error("Password does not match");
+      throw new Error("비밀번호가 일치하지 않습니다.");
     }
 
     // 관련된 데이터 삭제
@@ -219,7 +222,7 @@ export const deleteAccount = async (req: Request, res: Response) => {
     // 사용자 데이터 삭제
     await user.destroy();
 
-    res.json({ message: "Account deleted successfully" });
+    res.json({ message: "계정이 성공적으로 삭제되었습니다." });
   } catch (error: any) {
     res.status(400).json({ error: error.message });
   }

@@ -15,7 +15,7 @@ export const getInteractedUsers = async (req: Request, res: Response) => {
   try {
     const userId = req.user?.id;
     if (!userId) {
-      return res.status(401).json({ error: "User not authenticated" });
+      return res.status(401).json({ error: "사용자가 인증되지 않았습니다." });
     }
 
     const userRooms = await RoomParticipant.findAll({
@@ -61,7 +61,7 @@ export const getInteractedUsers = async (req: Request, res: Response) => {
     res.json(validInteractedUsers);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: "An unexpected error occurred" });
+    res.status(500).json({ error: "예기치 않은 오류가 발생했습니다." });
   }
 };
 
@@ -79,7 +79,7 @@ export const getUsers = async (req: Request, res: Response) => {
     res.json(users);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: "An unexpected error occurred" });
+    res.status(500).json({ error: "예기치 않은 오류가 발생했습니다." });
   }
 };
 
@@ -87,9 +87,31 @@ export const getRoom = async (req: Request, res: Response) => {
   try {
     const roomId = parseInt(req.params.roomId, 10);
     const userId = req.user?.id;
+    console.log(
+      `[getRoom] Requested by User ID: ${userId}, Room ID: ${roomId}`
+    );
 
     if (isNaN(roomId) || !userId) {
-      return res.status(400).json({ error: "Invalid room ID or user ID" });
+      return res
+        .status(400)
+        .json({ error: "잘못된 방 ID 또는 사용자 ID입니다." });
+    }
+
+    // 사용자가 마지막으로 채팅방을 나간 시간을 확인하기 위한 쿼리
+    const roomParticipantCondition = await RoomParticipant.findOne({
+      where: { roomId, userId },
+      attributes: ["isVisible", "leftAt"],
+    });
+
+    let chatsCondition = {};
+    if (
+      roomParticipantCondition &&
+      roomParticipantCondition.isVisible === false &&
+      roomParticipantCondition.leftAt
+    ) {
+      chatsCondition = {
+        createdAt: { [Op.gt]: roomParticipantCondition.leftAt },
+      };
     }
 
     const room = await Room.findByPk(roomId, {
@@ -97,6 +119,8 @@ export const getRoom = async (req: Request, res: Response) => {
         {
           model: Chat,
           as: "chats",
+          where: chatsCondition,
+          required: false,
           include: [
             {
               model: UserModel,
@@ -104,7 +128,6 @@ export const getRoom = async (req: Request, res: Response) => {
               attributes: ["id", "name", "profile_image", "company_name"],
             },
           ],
-          required: false,
         },
         {
           model: RoomParticipant,
@@ -113,40 +136,34 @@ export const getRoom = async (req: Request, res: Response) => {
           required: false,
         },
       ],
+      order: [[{ model: Chat, as: "chats" }, "createdAt", "ASC"]],
     });
 
     if (!room) {
       return res.json({});
     }
 
-    // 사용자가 마지막으로 채팅방을 나간 시간 확인
-    const roomParticipant = await RoomParticipant.findOne({
-      where: { roomId, userId },
-    });
-
-    if (roomParticipant && roomParticipant.isVisible === false) {
-      if (roomParticipant.leftAt) {
-        const leftAt = new Date(roomParticipant.leftAt).getTime();
-        room.chats = room.chats?.filter(
-          (chat) => new Date(chat.createdAt).getTime() > leftAt
-        );
-      } else {
-        room.chats = [];
-      }
-      console.log("Filtered messages for user:", userId, room.chats);
+    if (room && room.chats) {
+      console.log(
+        `[getRoom] Returning ${room.chats.length} messages for Room ID: ${roomId}`
+      );
+    } else {
+      console.log(
+        `[getRoom] No chats found or chats is undefined for Room ID: ${roomId}`
+      );
     }
 
     res.json(room);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: "An unexpected error occurred" });
+    res.status(500).json({ error: "예기치 않은 오류가 발생했습니다." });
   }
 };
 
 export const checkIfRoomExists = async (req: Request, res: Response) => {
   const userIdsString = req.query.userIds as string;
   if (!userIdsString) {
-    return res.status(400).json({ error: "User IDs are required" });
+    return res.status(400).json({ error: "사용자 ID가 필요합니다." });
   }
 
   const userIds = userIdsString
@@ -156,7 +173,7 @@ export const checkIfRoomExists = async (req: Request, res: Response) => {
     .sort((a, b) => a - b);
 
   if (userIds.length === 0) {
-    return res.status(400).json({ error: "Invalid User IDs" });
+    return res.status(400).json({ error: "잘못된 사용자 ID입니다." });
   }
 
   try {
@@ -181,8 +198,8 @@ export const checkIfRoomExists = async (req: Request, res: Response) => {
       return res.json({ exists: false, room: null });
     }
   } catch (error) {
-    console.error("Error in checkIfRoomExists:", error);
-    return res.status(500).json({ error: "An unexpected error occurred" });
+    console.error(error);
+    return res.status(500).json({ error: "예기치 않은 오류가 발생했습니다." });
   }
 };
 
@@ -208,7 +225,7 @@ async function findExistingRoom(userIds: number[]): Promise<Room | null> {
 export const createRoom = async (req: Request, res: Response) => {
   const { userIds, name } = req.body;
   if (!name) {
-    return res.status(400).json({ error: "Room name is required" });
+    return res.status(400).json({ error: "방 이름이 필요합니다." });
   }
 
   const existingRoom = await findExistingRoom(userIds);
@@ -238,7 +255,7 @@ export const postMessage = async (req: Request, res: Response) => {
     const chat = await Chat.create({ userId, roomId, message });
     const user = await UserModel.findOne({ where: { id: userId } });
     if (!user) {
-      throw new Error("User not found");
+      throw new Error("사용자를 찾을 수 없습니다.");
     }
 
     const chatData = {
@@ -267,8 +284,8 @@ export const postMessage = async (req: Request, res: Response) => {
 
     res.json(chatData);
   } catch (error) {
-    console.error("Error in postMessage:", error);
-    res.status(500).json({ error: "An unexpected error occurred" });
+    console.error(error);
+    res.status(500).json({ error: "예기치 않은 오류가 발생했습니다." });
   }
 };
 
@@ -322,39 +339,32 @@ export const removeUserFromRoom = async (req: Request, res: Response) => {
     const roomId = parseInt(req.params.roomId, 10);
     const userId = parseInt(req.params.userId, 10);
 
-    console.log(
-      `Removing user from room - roomId: ${roomId}, userId: ${userId}`
-    );
-
     if (isNaN(roomId) || isNaN(userId)) {
-      return res.status(400).json({ error: "Invalid room or user ID" });
+      return res.status(400).json({ error: "잘못된 사용자 ID입니다." });
     }
 
     const roomParticipant = await RoomParticipant.findOne({
       where: { roomId, userId },
     });
 
-    if (!roomParticipant) {
-      console.log(
-        `User ${userId} not found in room ${roomId}, no action needed`
-      );
-      return res.status(404).json({ error: "User not found in room" });
-    }
-
-    if (roomParticipant.isVisible) {
+    if (roomParticipant) {
       const currentTime = moment().tz("Asia/Seoul").toDate();
       await RoomParticipant.update(
         { isVisible: false, leftAt: currentTime },
         { where: { roomId, userId } }
       );
-      res.json({ success: true });
+
+      res.json({
+        success: true,
+        message: "방에서 사용자가 나가고, 상태가 업데이트되었습니다.",
+      });
     } else {
-      // 이미 isVisible이 false인 경우에 대한 처리
-      console.log(`User ${userId} already removed from room ${roomId}`);
-      res.json({ success: true, message: "User already removed from room" });
+      return res
+        .status(404)
+        .json({ error: "방에서 사용자를 찾을 수 없습니다." });
     }
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: "An unexpected error occurred" });
+    res.status(500).json({ error: "예기치 않은 오류가 발생했습니다." });
   }
 };

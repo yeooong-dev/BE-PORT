@@ -168,19 +168,18 @@ export const getUserInfo = async (req: Request, res: Response) => {
     const { email } = req.query;
 
     if (!email || typeof email !== "string") {
-      return res.status(400).send("Invalid email parameter");
+      return res.status(400).send("잘못된 이메일 파라미터");
     }
 
     // 데이터베이스에서 사용자를 찾음
     const userInstance = await UserModel.findOne({ where: { email } });
-
     if (!userInstance) {
-      return res.status(404).send("User not found");
+      return res.status(404).send("사용자를 찾을 수 없습니다.");
     }
 
     res.status(200).send(userInstance);
   } catch (error) {
     console.error(error);
-    res.status(500).send("Internal server error");
+    res.status(500).send("서버 내부 오류");
   }
 };
