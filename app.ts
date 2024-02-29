@@ -43,12 +43,12 @@ app.use(
     })
 );
 
-const options = {
-    key: fs.readFileSync("/etc/letsencrypt/live/portport.shop/privkey.pem"),
-    cert: fs.readFileSync("/etc/letsencrypt/live/portport.shop/fullchain.pem"),
-};
+// const options = {
+//     key: fs.readFileSync("/etc/letsencrypt/live/portport.shop/privkey.pem"),
+//     cert: fs.readFileSync("/etc/letsencrypt/live/portport.shop/fullchain.pem"),
+// };
 
-const server = https.createServer(options, app);
+const server = https.createServer(app);
 const io = initSocket(server);
 const UserModel = User(sequelize);
 
