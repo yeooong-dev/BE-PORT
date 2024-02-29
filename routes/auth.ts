@@ -2,6 +2,7 @@ import express from "express";
 import * as authController from "../controller/authController";
 import * as mypageController from "../controller/mypageController";
 import upload from "../middleware/upload";
+import cors from "cors";
 
 const router = express.Router();
 

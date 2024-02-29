@@ -6,6 +6,8 @@ import express from "express";
 import session from "express-session";
 import logger from "morgan";
 import jwt from "jsonwebtoken";
+import fs from "fs";
+import https from "https";
 import authRoutes from "./routes/auth";
 import todoRoutes from "./routes/todo";
 import familyEventsRoutes from "./routes/familyEvents";
@@ -14,8 +16,6 @@ import chatRoutes from "./routes/chat";
 import searchRoutes from "./routes/search";
 import leaveRoutes from "./routes/leave";
 import chartRoutes from "./routes/chart";
-import https from "https";
-import fs from "fs";
 import sequelize from "./config/database";
 import { defineRelations } from "./models/chat/defineRelations";
 import { initSocket } from "./socket";
@@ -28,8 +28,20 @@ interface MyJwtPayload {
     id: number;
 }
 
-const PORT = process.env.PORT || 8000;
+const PORT = 443;
+const path = require("path");
 const app = express();
+
+app.use(
+    cors({
+        origin: "https://port-six-theta.vercel.app",
+        credentials: true,
+        methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        allowedHeaders: ["Content-Type", "Authorization"],
+        preflightContinue: false,
+        optionsSuccessStatus: 204,
+    })
+);
 
 const options = {
     key: fs.readFileSync("/etc/letsencrypt/live/portport.shop/privkey.pem"),
@@ -40,18 +52,11 @@ const server = https.createServer(options, app);
 const io = initSocket(server);
 const UserModel = User(sequelize);
 
-app.use(
-    cors({
-        origin: ["https://port-six-theta.vercel.app"],
-        methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
-        credentials: true,
-        optionsSuccessStatus: 204,
-    })
-);
-
+app.use(logger("combined"));
 app.use(logger("dev"));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
+app.use(express.static(path.join(__dirname, "build")));
 
 app.use(
     session({
@@ -73,6 +78,13 @@ app.use(async (req, res, next) => {
         } catch (error) {
             console.error("토큰 검증 실패:", error);
         }
+    }
+    next();
+});
+
+app.use((req, res, next) => {
+    if (req.method === "OPTIONS") {
+        console.log(`Received an OPTIONS request for ${req.path}`);
     }
     next();
 });
@@ -219,6 +231,10 @@ app.use("/chat", chatRoutes);
 app.use("/search", searchRoutes);
 app.use("/leave", leaveRoutes);
 app.use("/chart", chartRoutes);
+
+app.get("*", (req, res) => {
+    res.sendFile(path.join(__dirname, "build", "index.html"));
+});
 
 server.listen(PORT, () => {
     console.log(`HTTPS 서버가 포트 ${PORT}에서 실행 중입니다.`);
