@@ -1,5 +1,4 @@
-import { DataTypes, Model } from "sequelize";
-import sequelize from "../config/database";
+import { DataTypes, Model, Sequelize } from "sequelize";
 
 interface LeaveAttributes {
     id?: number;
@@ -8,44 +7,36 @@ interface LeaveAttributes {
     status: "APPROVED" | "PENDING" | "DENIED";
 }
 
-class Leave extends Model<LeaveAttributes> implements LeaveAttributes {
-    public id!: number;
-    public date!: string;
-    public userId!: number;
-    public status!: "APPROVED" | "PENDING" | "DENIED";
+interface LeaveInstance extends Model<LeaveAttributes, Omit<LeaveAttributes, "id">> {}
 
-    static associate() {
-        this.belongsTo(sequelize.model("User"), { foreignKey: "userId" });
-    }
-}
-
-Leave.init(
-    {
-        id: {
-            type: DataTypes.INTEGER.UNSIGNED,
-            autoIncrement: true,
-            primaryKey: true,
+const Leave = (sequelize: Sequelize) => {
+    const Leave = sequelize.define<LeaveInstance>(
+        "Leave",
+        {
+            id: {
+                type: DataTypes.INTEGER.UNSIGNED,
+                autoIncrement: true,
+                primaryKey: true,
+            },
+            date: {
+                type: DataTypes.STRING,
+                allowNull: false,
+            },
+            userId: {
+                type: DataTypes.INTEGER,
+                allowNull: false,
+            },
+            status: {
+                type: DataTypes.ENUM("APPROVED", "PENDING", "DENIED"),
+                allowNull: false,
+            },
         },
-        date: {
-            type: DataTypes.STRING,
-            allowNull: false,
-        },
-        userId: {
-            type: DataTypes.INTEGER,
-            allowNull: false,
-        },
-        status: {
-            type: DataTypes.ENUM("APPROVED", "PENDING", "DENIED"),
-            allowNull: false,
-        },
-    },
-    {
-        sequelize,
-        tableName: "leaves",
-        timestamps: false,
-    }
-);
-
-Leave.associate();
+        {
+            tableName: "leaves",
+            timestamps: false,
+        }
+    );
+    return Leave;
+};
 
 export default Leave;
