@@ -7,7 +7,6 @@ import session from "express-session";
 import logger from "morgan";
 import jwt from "jsonwebtoken";
 import fs from "fs";
-import http from "http";
 import https from "https";
 import authRoutes from "./routes/auth";
 import todoRoutes from "./routes/todo";
@@ -39,12 +38,12 @@ app.use(
     })
 );
 
-// const options = {
-//     key: fs.readFileSync("/etc/letsencrypt/live/portport.shop/privkey.pem"),
-//     cert: fs.readFileSync("/etc/letsencrypt/live/portport.shop/fullchain.pem"),
-// };
+const options = {
+    key: fs.readFileSync("/etc/letsencrypt/live/portport.shop/privkey.pem"),
+    cert: fs.readFileSync("/etc/letsencrypt/live/portport.shop/fullchain.pem"),
+};
 
-const server = http.createServer(app);
+const server = https.createServer(app);
 const UserModel = User(sequelize);
 
 app.use(logger("combined"));
@@ -100,6 +99,6 @@ app.get("*", (req, res) => {
     res.sendFile(path.join(__dirname, "..", "FE-PORT", "build", "index.html"));
 });
 
-app.listen(PORT, () => {
-    console.log(`${PORT}에서 실행 중입니다.`);
+server.listen(PORT, () => {
+    console.log(`HTTPS server running on port ${PORT}`);
 });
