@@ -23,7 +23,7 @@ interface MyJwtPayload {
     id: number;
 }
 
-const PORT = process.env.PORT || 8000;
+const PORT = process.env.PORT || 443;
 const path = require("path");
 const app = express();
 
@@ -39,11 +39,11 @@ app.use(
 );
 
 const options = {
-    key: fs.readFileSync("/etc/letsencrypt/live/portport.shop/privkey.pem"),
-    cert: fs.readFileSync("/etc/letsencrypt/live/portport.shop/fullchain.pem"),
+    key: fs.readFileSync("/home/ubuntu/ssl/privkey.pem"),
+    cert: fs.readFileSync("/home/ubuntu/ssl/fullchain.pem"),
 };
 
-const server = https.createServer(app);
+const server = https.createServer(options, app);
 const UserModel = User(sequelize);
 
 app.use(logger("combined"));
