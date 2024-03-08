@@ -23,7 +23,7 @@ interface MyJwtPayload {
     id: number;
 }
 
-const PORT = process.env.PORT || 8000;
+const PORT = process.env.PORT || 443;
 const path = require("path");
 const app = express();
 
