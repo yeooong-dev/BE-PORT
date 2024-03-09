@@ -1,6 +1,8 @@
 import dotenv from "dotenv";
 dotenv.config();
 
+console.log("로그", process.env);
+
 import cors from "cors";
 import express from "express";
 import session from "express-session";
